@@ -1,7 +1,5 @@
 # Create the Correct Tables for Prothrombin Data
 
-setwd('/Users/walterdempsey/Documents/stat/research/joint_models/dual-alignment-project/code/prednisone')
-
 source('http://www.stat.uchicago.edu/~pmcc/courses/regress.R')
 
 Liver_Data = read.table('LiverData.csv', sep = ',', header = TRUE)

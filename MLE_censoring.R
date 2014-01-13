@@ -134,10 +134,6 @@ library(numDeriv)
 
 print('Computing the Hessian')
 
-mle_mean = mle_est[1:length(mean_params)]
-mle_cov = , theta
-
-
 obs_inf <- function(log_lik_vector, mle_est) {
 	return(hessian(log_lik_vector, mle_est))	
 }

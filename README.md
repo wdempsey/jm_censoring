@@ -28,4 +28,20 @@ We require two separate tables for the data.  **Table 1** contains all the Survi
 
 # User Determined Functions
 
+The User is required to define several functions in order to for the model to be fit.
+
+1. Mean Model :  We require two functions **X1** and **X2**.  Each takes a subset of Table_2 for a specific patient, and produces the covariates to be used in the mean model.  **X2** will also takes the survival time, as an input, and is used to estimate covariates which are dependent on the survival time. A simple example would be where **X2** is just the revival function:
+
+<code>
+  X_2 <- function(t, patient_history) {
+    revival <- Table_2$obs_times - as.numeric(lapply(Table_2$id, survival));
+    return(revival)
+  }
+</code>
+
+where 'survival' is a function that returns the survival of the patient in question.
+2. Covariance Model :
+3. Initial Values
+
+
 # Sample Fit

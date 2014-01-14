@@ -159,6 +159,6 @@ obs_inf <- function(log_lik_vector, mle_est) {
 
 Hess = obs_inf(log_lik_vector, mle_est)
 
-return(mle = mle_est, hess = Hess)
+return(list(mle = mle_est, hess = Hess))
 
 }

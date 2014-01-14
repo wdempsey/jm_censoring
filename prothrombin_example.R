@@ -87,7 +87,7 @@ baseline_model <- regress(Table_2_uncens$obs~Table_2_uncens$treatment+Table_2_un
 summary(baseline_model)
 
 mean_params <- baseline_model$beta
-cov_params <- c(baseline_model$sigma,1)
+cov_params <- c(baseline_model$sigma,cov_lambda)
 theta <- (sum(Table_1$cens))/sum(Table_1$survival)
 
 ### Running the Code on Only Censored Individuals ##
@@ -95,6 +95,6 @@ theta <- (sum(Table_1$cens))/sum(Table_1$survival)
 Table_2_cens = Table_2[Table_2$cens==0,c(1:4,6:8)]
 Table_1_cens = Table_1[Table_1$cens==0,]
 
-source('/Users/walterdempsey/Documents/stat/research/joint_models/censoring/jm_censoring/MLE_censoring_gen.R')
+source('MLE_censoring.R')
 
 revival_model(Table_1_cens, Table_2_cens, X_1, X_2, Sigma_calc, mean_params, cov_params, theta)

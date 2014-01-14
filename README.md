@@ -30,18 +30,27 @@ We require two separate tables for the data.  **Table 1** contains all the Survi
 
 The User is required to define several functions in order to for the model to be fit.
 
-1. Mean Model :  We require two functions **X1** and **X2**.  Each takes a subset of Table_2 for a specific patient, and produces the covariates to be used in the mean model.  **X2** will also takes the survival time, as an input, and is used to estimate covariates which are dependent on the survival time. A simple example would be where **X2** is just the revival function:
+* Mean Model :  We require two functions **X1** and **X2**.  Each takes a subset of Table_2 for a specific patient, and produces the covariates to be used in the mean model.  **X2** will also takes the survival time, as an input, and is used to estimate covariates which are dependent on the survival time. A simple example would be where **X2** is just the revival function:
 
-<code>
-  X_2 <- function(t, patient_history) {
-    revival <- Table_2$obs_times - as.numeric(lapply(Table_2$id, survival));
-    return(revival)
-  }
-</code>
+<pre><code> X2 = function(t, table) {
+return(revival = table2$obs_times - as.numeric(lapply(table$id, survival)))
+}
+</code></pre>
 
 where 'survival' is a function that returns the survival of the patient in question.
-2. Covariance Model :
-3. Initial Values
+
+* Covariance Model : We require a function **SigmaCalc** which computes the covariance matrix given a set of parameters, **covparams**.  An example would be iid patients where there is a exponential covariance term depending on the observation times for a particular patient.  Such an example would give:
+
+<pre><code> SigmaCalc = function(covparams, table) {
+sigmasq0 = covparams[1]
+sigmasq1 = covparams[2]
+lambda = covparams[3]
+Cov = sigmasq0 * diag(length(table)) + sigmasq1* exp(-abs(outer(table$obstimes, table$obstime)))
+return(Cov)
+}
+</code></pre>
+
+* Initial Values
 
 
 # Sample Fit

@@ -129,28 +129,9 @@ rev <- revival_model(Table_1_cens, Table_2_cens, X_1, X_2, Sigma_calc, mean_para
 
 mle = rev$mle
 Hess = rev$hess
-EigHess = eigen(Hess)
 
-invmax_zero <- function(tol) {
-  inv <- function(x) {
-    if (x<tol) {return(0)}    
-    if (x>tol) {return(1/x)}
-  }
-  return(inv)
-}
-
-Dinv = diag(as.numeric(lapply(EigHess$values,invmax_zero(10^-6))))
-U = EigHess$vectors
-
-pseudoinvHess = U%*%Dinv%*%t(U)
-
-beta_output = cbind(rev$beta, rev$beta.stderr)
-
-sigma_output = cbind(rev$sigma, rev$sigma.stderr)
-
-write.table(beta_output, file = 'beta_output', append = TRUE)
-
-print(rev$llik)
+write.table(mle, 'sim_mle')
+write.table(Hess, 'sim_hess')
 
 
 

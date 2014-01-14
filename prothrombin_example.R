@@ -103,7 +103,13 @@ rev_mod <- revival_model(Table_1_cens, Table_2_cens, X_1, X_2, Sigma_calc, mean_
 mle = rev_mod$mle
 hess = rev_mod$hess
 
+write.table(mle, 'prot_mle')
+write.table(hess, 'prot_hess')
+
 rev_mod_compl <- revival_model(Table_1, Table_2, X_1, X_2, Sigma_calc, mean_params, cov_params, theta)
 
 mle_compl = rev_mod_compl$mle
 hess_compl = rev_mod_compl$hess
+
+write.table(mle_compl, 'prot_mle_comp')
+write.table(hess, 'prot_hess_comp')

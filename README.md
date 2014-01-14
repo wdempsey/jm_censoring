@@ -28,7 +28,7 @@ We require two separate tables for the data.  **Table 1** contains all the Survi
 
 # User Determined Functions
 
-The User is required to define several functions in order to for the model to be fit.
+The User is required to define several functions in order to fit the model.
 
 * Mean Model :  We require two functions **X1** and **X2**.  Each takes a subset of Table_2 for a specific patient, and produces the covariates to be used in the mean model.  **X2** will also takes the survival time, as an input, and is used to estimate covariates which are dependent on the survival time. A simple example would be where **X2** is just the revival function:
 
@@ -50,7 +50,14 @@ return(Cov)
 }
 </code></pre>
 
-* Initial Values
+* Initial Values : The User is required to provide initial values for the parameter estimates.  These typically are the result of analysis done on only the uncensored individuals.
 
 
 # Sample Fit
+
+We provide a set of simulated [examples](./examples.R) to test the code.  In each, the model is fit by first sourcing the [fitting code](./MLE_censoring.R), and then running:
+
+<pre><code> rev = revival_model(Table1, Table2, X1, X2, Sigmacalc, meanparams, covparams, theta)
+</code></pre>
+
+where **theta** denotes the parameters associated with the survival model.  We also provide a [case study](./prothrombin_example.R).  The function outputs the estimated maximum likelihood estimate <code> rev$mle </code> as well as the Hessian of the log-likelihood at the MLE, <code> rev$hess </code>.  We can then compute standard errors from the numerically computed Hessian.

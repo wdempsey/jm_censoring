@@ -100,16 +100,10 @@ source('MLE_censoring.R')
 
 rev_mod <- revival_model(Table_1_cens, Table_2_cens, X_1, X_2, Sigma_calc, mean_params, cov_params, theta)
 
-print(cbind(rev_mod$beta, rev_mod$beta.stderr))
-
-print(cbind(rev_mod$sigma, rev_mod$sigma.stderr))
-
-print(rev_mod$llik)
+mle = rev_mod$mle
+hess = rev_mod$hess
 
 rev_mod_compl <- revival_model(Table_1, Table_2, X_1, X_2, Sigma_calc, mean_params, cov_params, theta)
 
-print(cbind(rev_mod_compl$beta, rev_mod_compl$beta.stderr))
-
-print(cbind(rev_mod_compl$sigma, rev_mod_compl$sigma.stderr))
-
-print(rev_mod_compl$llik)
+mle_compl = rev_mod_compl$mle
+hess_compl = rev_mod_compl$hess

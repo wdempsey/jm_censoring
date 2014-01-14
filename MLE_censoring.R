@@ -1,4 +1,4 @@
-revival_model <- function(Table_1, Table_2, X_1, X_2, Sigma_calc, mean_params, cov_params, theta) {
+revival_model <- function(Table_1, Table_2, X_1, X_2, Sigma_calc, mean_params, cov_params, theta, fixed = FALSE) {
 	
 	# Fits a Components of Variance Model
 
@@ -115,17 +115,31 @@ log_lik <- function(mean_params, cov_params, theta, table1 = Table_1, table2 = T
 
 log_lik_vector <- function(params, table1 = Table_1, table2 = Table_2) {
 	mean_params = params[1:length(mean_params)]
-	cov_params = params[(length(mean_params)+1):length(params)]
+	cov_params = params[(length(mean_params)+1):(length(params)-1)]
+  theta = params[length(params)]
 	return(-log_lik(mean_params, cov_params, theta, table1, table2))
+}
+
+log_lik_vector_fixed <- function(theta) {
+  llik_theta <- function(params) {
+    return(log_lik_vector(c(params,theta)))
+  }
+  return(llik_theta)  
 }
 
 # Fit from the Initialization Given By Model_Cens
 
-inits <- c(mean_params, cov_params, theta)
-
 print('Got to The Optimization Component')
 
-op_llik <- optim(inits, log_lik_vector,lower = c(rep(-Inf,length(mean_params)), rep(0, length(cov_params)), 0), upper = c(rep(Inf, length(mean_params) + length(cov_params)), 5))
+if(fixed == TRUE) {
+  print('Fixed Theta For Optimization')
+  inits <- c(mean_params, cov_params)
+  op_llik <- optim(inits, log_lik_vector_fixed(theta),lower = c(rep(-Inf,length(mean_params)), rep(0, length(cov_params)), 0), upper = c(rep(Inf, length(mean_params) + length(cov_params)), 5))  
+}
+if(fixed == FALSE) {
+  inits <- c(mean_params, cov_params, theta)
+  op_llik <- optim(inits, log_lik_vector,lower = c(rep(-Inf,length(mean_params)), rep(0, length(cov_params)), 0), upper = c(rep(Inf, length(mean_params) + length(cov_params)), 5))  
+}
 
 print('Finished the Optimization Code')
 
@@ -143,35 +157,8 @@ obs_inf <- function(log_lik_vector, mle_est) {
 	return(hessian(log_lik_vector, mle_est))	
 }
 
-mle_cov = try(solve(obs_inf(log_lik_vector, mle_est)))
+Hess = obs_inf(log_lik_vector, mle_est)
 
-if (typeof(mle_cov) == 'character') {
-	mle_cov == matrix(nrow = length(mle_est), ncol = length(mle_est))
-	return(list(beta = mle_est[1:length(mean_params)], sigma = mle_est[(length(mean_params)):length(mle_est)], llik = mle_llik, cov = mle_cov))
-}
-else {
-	std_error <- function(mle_cov) {
-	
-		eig_vals = eigen(-est_cov)$value
-		eig_vectors = eigen(-est_cov)$vectors
-
-		D = diag(as.numeric(lapply(eig_vals,nonzero)))
-		U = eig_vectors
-
-		Est_Param_Cov <- U%*%D%*%t(U)
-
-		est_std_error = sqrt(diag(Est_Param_Cov))
-	
-		return(est_std_error)
-
-	}
-
-	est_std_error = std_error(mle_est)
-
-	mle_llik <- log_lik_vector(mle_est)
-
-	return(list(beta = mle_est[1:length(mean_params)], sigma = mle_est[(length(mean_params)):length(mle_est)], llik = mle_llik, cov = mle_cov, beta.stderr = est_std_error[1:length(mean_params)], sigma.stderr = est_std_error[(length(mean_params)):length(mle_est)] ))
-}
-
+return(mle = mle_est, hess = Hess)
 
 }

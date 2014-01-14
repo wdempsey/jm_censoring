@@ -130,8 +130,6 @@ rev <- revival_model(Table_1_cens, Table_2_cens, X_1, X_2, Sigma_calc, mean_para
 mle = rev$mle
 Hess = rev$hess
 
-write.table(mle, 'sim_mle')
-write.table(Hess, 'sim_hess')
+write.table(mle, 'sim_mle', append = TRUE, row.names = FALSE, col.names = FALSE)
 
-
-
+write.table(Hess, 'sim_hess', append = TRUE, row.names = FALSE, col.names = FALSE)

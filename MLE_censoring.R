@@ -141,6 +141,7 @@ if(fixed == FALSE) {
   op_llik <- optim(inits, log_lik_vector,lower = c(rep(-Inf,length(mean_params)), rep(0, length(cov_params)), 0), upper = c(rep(Inf, length(mean_params) + length(cov_params)), 5))  
 }
 
+print(op_llik$convergence)
 print('Finished the Optimization Code')
 
 mle_est <- op_llik$par

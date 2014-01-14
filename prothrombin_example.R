@@ -32,6 +32,7 @@ pat_table = Table_2[Table_2$id == 220,]
   
 X_1 <- function(pat_table) {
   const = rep(1, dim(pat_table)[1])
+  return(const)
 }
 
 X_2 <- function(t, pat_table) {
@@ -44,7 +45,7 @@ X_2 <- function(t, pat_table) {
   treatment = pat_table$treatment
   T = rep(t, length(revival))
   form=~treatment+T+revival+log_rev
-  return(model.matrix(form)[2:5,])
+  return(model.matrix(form)[,2:6])
 }
 
 Sigma_calc <- function(cov_params, pat_table) {
@@ -97,4 +98,18 @@ Table_1_cens = Table_1[Table_1$cens==0,]
 
 source('MLE_censoring.R')
 
-revival_model(Table_1_cens, Table_2_cens, X_1, X_2, Sigma_calc, mean_params, cov_params, theta)
+rev_mod <- revival_model(Table_1_cens, Table_2_cens, X_1, X_2, Sigma_calc, mean_params, cov_params, theta)
+
+print(cbind(rev_mod$beta, rev_mod$beta.stderr))
+
+print(cbind(rev_mod$sigma, rev_mod$sigma.stderr))
+
+print(rev_mod$llik)
+
+rev_mod_compl <- revival_model(Table_1, Table_2, X_1, X_2, Sigma_calc, mean_params, cov_params, theta)
+
+print(cbind(rev_mod_compl$beta, rev_mod_compl$beta.stderr))
+
+print(cbind(rev_mod_compl$sigma, rev_mod_compl$sigma.stderr))
+
+print(rev_mod_compl$llik)

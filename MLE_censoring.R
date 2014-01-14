@@ -17,7 +17,12 @@ revival_model <- function(Table_1, Table_2, X_1, X_2, Sigma_calc, mean_params, c
 			# Column 4-n = Observed Covariates to Be Used in Fitting Model
 
 Cov <- function(t, pat_table) {
-	return(cbind(X_1(pat_table), X_2(t, pat_table)))
+  if (dim(pat_table)[1] == 1) {
+    return(c(X_1(pat_table), X_2(t, pat_table)))
+  }
+  else {
+    return(cbind(X_1(pat_table), X_2(t, pat_table)))
+  }
 }
 
 g <- function( mean_params, cov_params, pat_table) {

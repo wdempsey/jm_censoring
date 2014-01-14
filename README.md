@@ -57,7 +57,7 @@ return(Cov)
 
 We provide a set of simulated [examples](./examples.R) to test the code.  In each, the model is fit by first sourcing the [fitting code](./MLE_censoring.R), and then running:
 
-<pre><code> revival_model(Table1, Table2, X1, X2, Sigmacalc, meanparams, covparams, theta)
+<pre><code> rev = revival_model(Table1, Table2, X1, X2, Sigmacalc, meanparams, covparams, theta)
 </code></pre>
 
-where **theta** denotes the parameters associated with the survival model.  We also provide a [case study](./prothrombin_example.R).
+where **theta** denotes the parameters associated with the survival model.  We also provide a [case study](./prothrombin_example.R).  The function outputs the estimated maximum likelihood estimate <code> rev$mle </code> as well as the Hessian of the log-likelihood at the MLE, <code> rev$hess </code>.  We can then compute standard errors from the numerically computed Hessian.

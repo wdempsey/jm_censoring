@@ -8,6 +8,8 @@ compl_sigma <- rep(0,0)
 cens_beta <- rep(0,0)
 cens_sigma <- rep(0,0)
 
+rev_mle <- rep(0,0)
+
 for(k in 1:11) {
 n_patients = 100
 

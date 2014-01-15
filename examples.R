@@ -106,6 +106,10 @@ cens_beta <- cbind(cens_beta, model2$beta)
 cens_sigma <- cbind(cens_sigma, model2$sigma)
 
 # Create the Mean and Covariance Functions
+survival_cens_time <- function(x) {Table_1_cens$survival[Table_1_cens$id == x]}
+
+
+Table_2_rev = Table_2[-which(Table_2$obs_times > as.numeric(lapply(Table_2$id,survival_cens_time))),]
   
 X_1 <- function(pat_table) {
   const = rep(1, dim(pat_table)[1])
@@ -120,19 +124,19 @@ X_2 <- function(t, pat_table) {
 Sigma_calc <- function(cov_params, pat_table) {
   sigmasq_0 = cov_params[1]
   sigmasq_1 = cov_params[2]
-#  lambda = cov_params[3]
-  return( sigmasq_0 * diag(length(pat_table$obs_times)) + sigmasq_1 * exp(-abs(outer(pat_table$obs_times, pat_table$obs_times,"-"))/1))
+  lambda = cov_params[3]
+  return( sigmasq_0 * diag(length(pat_table$obs_times)) + sigmasq_1 * exp(-abs(outer(pat_table$obs_times, pat_table$obs_times,"-"))/lambda))
 }
 
 # Initialization
 
 mean_params <- model2$beta
-cov_params <- c(model2$sigma)
+cov_params <- c(model2$sigma,lambda)
 theta <- (sum(Table_1_cens$cens))/sum(Table_1_cens$survival)
 
 source('MLE_censoring.R')
 
-rev <- revival_model(Table_1_cens, Table_2_cens, X_1, X_2, Sigma_calc, mean_params, cov_params, theta, fixed = FALSE)
+rev <- revival_model(Table_1_cens, Table_2_rev, X_1, X_2, Sigma_calc, mean_params, cov_params, theta, fixed = FALSE)
 
 mle = rev$mle
 Hess = rev$hess

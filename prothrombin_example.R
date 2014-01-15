@@ -1,3 +1,8 @@
+## Turn Command Line Arguments On
+
+args <- commandArgs(TRUE)
+library(sendmailR)
+
 # Create the Correct Tables for Prothrombin Data
 
 source('http://www.stat.uchicago.edu/~pmcc/courses/regress.R')
@@ -98,18 +103,61 @@ Table_1_cens = Table_1[Table_1$cens==0,]
 
 source('MLE_censoring.R')
 
-rev_mod <- revival_model(Table_1_cens, Table_2_cens, X_1, X_2, Sigma_calc, mean_params, cov_params, theta)
+if(args[1] == 'cens') {
+	print('Computing Censored Only Model')
 
-mle = rev_mod$mle
-hess = rev_mod$hess
+	rev_mod <- revival_model(Table_1_cens, Table_2_cens, X_1, 	X_2, Sigma_calc, mean_params, cov_params, theta)
+	
+	mle = rev_mod$mle
+	hess = rev_mod$hess
 
-write.table(mle, 'prot_mle')
-write.table(hess, 'prot_hess')
+	write.table(mle, 'prot_mle')
+	write.table(hess, 'prot_hess')
 
-rev_mod_compl <- revival_model(Table_1, Table_2, X_1, X_2, Sigma_calc, mean_params, cov_params, theta)
+	from = sprintf("<admirR@\\%s>", Sys.info()[4])
+	to = "<dempsey.walter@gmail.com>"
+	subject <- "Completed Fitting Censored Model"
+	body <- list("Check The Output")
+	sendmail(from, to, subject, body, control=list(smtpServer="ASPMX.L.GOOGLE.COM"))
 
-mle_compl = rev_mod_compl$mle
-hess_compl = rev_mod_compl$hess
+}
 
-write.table(mle_compl, 'prot_mle_comp')
-write.table(hess, 'prot_hess_comp')
+if(args[1] == 'uncens') {
+	print('Computing UnCensored Only Model')
+
+	rev_mod <- revival_model(Table_1_uncens, Table_2_uncens, X_1, 	X_2, Sigma_calc, mean_params, cov_params, theta)
+	
+	mle = rev_mod$mle
+	hess = rev_mod$hess
+
+	write.table(mle, 'prot_mle_uncens')
+	write.table(hess, 'prot_hess_uncens')
+
+	from = sprintf("<admirR@\\%s>", Sys.info()[4])
+	to = "<dempsey.walter@gmail.com>"
+	subject <- "Completed Fitting UnCensored Model"
+	body <- list("Check The Output")
+	sendmail(from, to, subject, body, control=list(smtpServer="ASPMX.L.GOOGLE.COM"))
+
+}
+
+
+if(args[1] == 'compl') {
+	print('Computing Complete Model')
+
+	rev_mod_compl <- revival_model(Table_1, Table_2, X_1, X_2, Sigma_calc, mean_params, cov_params, theta)
+
+	mle_compl = rev_mod_compl$mle
+	hess_compl = rev_mod_compl$hess
+
+	write.table(mle_compl, 'prot_mle_comp')
+	write.table(hess, 'prot_hess_comp')
+	
+	from = sprintf("<admirR@\\%s>", Sys.info()[4])
+	to = "<dempsey.walter@gmail.com>"
+	subject <- "Completed Fitting Complete Model"
+	body <- list("Check The Output")
+	sendmail(from, to, subject, body, control=list(smtpServer="ASPMX.L.GOOGLE.COM"))
+
+}
+

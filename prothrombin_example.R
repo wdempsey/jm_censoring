@@ -110,9 +110,11 @@ if(args[1] == 'cens') {
 	
 	mle = rev_mod$mle
 	hess = rev_mod$hess
-
-	write.table(mle, 'prot_mle')
-	write.table(hess, 'prot_hess')
+    conv = rev_mod$conv
+    
+	write.table(mle, 'prot_mle_cens')
+	write.table(hess, 'prot_hess_cens')
+    write.table(conv, 'prot_conv_cens')
 
 	from = sprintf("<admirR@\\%s>", Sys.info()[4])
 	to = "<dempsey.walter@gmail.com>"
@@ -129,9 +131,11 @@ if(args[1] == 'uncens') {
 	
 	mle = rev_mod$mle
 	hess = rev_mod$hess
+    conv = rev_mod$conv
 
 	write.table(mle, 'prot_mle_uncens')
 	write.table(hess, 'prot_hess_uncens')
+    write.table(conv, 'prot_conv_uncens')
 
 	from = sprintf("<admirR@\\%s>", Sys.info()[4])
 	to = "<dempsey.walter@gmail.com>"
@@ -149,10 +153,14 @@ if(args[1] == 'compl') {
 
 	mle_compl = rev_mod_compl$mle
 	hess_compl = rev_mod_compl$hess
+    conv = rev_mod_compl$conv
+
 
 	write.table(mle_compl, 'prot_mle_comp')
 	write.table(hess, 'prot_hess_comp')
-	
+    write.table(conv, 'prot_conv_comp')
+
+
 	from = sprintf("<admirR@\\%s>", Sys.info()[4])
 	to = "<dempsey.walter@gmail.com>"
 	subject <- "Completed Fitting Complete Model"

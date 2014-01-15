@@ -1,7 +1,7 @@
 ## Turn Command Line Arguments On
 
 args <- commandArgs(TRUE)
-library(sendmailR)
+library(mail)
 
 # Create the Correct Tables for Prothrombin Data
 
@@ -103,6 +103,8 @@ Table_1_cens = Table_1[Table_1$cens==0,]
 
 source('MLE_censoring.R')
 
+recipient = "dempsey.walter@gmail.com"
+
 if(args[1] == 'cens') {
 	print('Computing Censored Only Model')
 
@@ -116,11 +118,7 @@ if(args[1] == 'cens') {
 	write.table(hess, 'prot_hess_cens')
     write.table(conv, 'prot_conv_cens')
 
-	from = sprintf("<admirR@\\%s>", Sys.info()[4])
-	to = "<dempsey.walter@gmail.com>"
-	subject <- "Completed Fitting Censored Model"
-	body <- list("Check The Output")
-	sendmail(from, to, subject, body, control=list(smtpServer="ASPMX.L.GOOGLE.COM"))
+    sendmail(recipient, subject="Notification from R", message="Censored Only Model Calculation finished!")
 
 }
 
@@ -137,12 +135,7 @@ if(args[1] == 'uncens') {
 	write.table(hess, 'prot_hess_uncens')
     write.table(conv, 'prot_conv_uncens')
 
-	from = sprintf("<admirR@\\%s>", Sys.info()[4])
-	to = "<dempsey.walter@gmail.com>"
-	subject <- "Completed Fitting UnCensored Model"
-	body <- list("Check The Output")
-	sendmail(from, to, subject, body, control=list(smtpServer="ASPMX.L.GOOGLE.COM"))
-
+    sendmail(recipient, subject="Notification from R", message="Uncensored Only Model Calculation finished!")
 }
 
 
@@ -160,12 +153,6 @@ if(args[1] == 'compl') {
 	write.table(hess, 'prot_hess_comp')
     write.table(conv, 'prot_conv_comp')
 
-
-	from = sprintf("<admirR@\\%s>", Sys.info()[4])
-	to = "<dempsey.walter@gmail.com>"
-	subject <- "Completed Fitting Complete Model"
-	body <- list("Check The Output")
-	sendmail(from, to, subject, body, control=list(smtpServer="ASPMX.L.GOOGLE.COM"))
-
+    sendmail(recipient, subject="Notification from R", message="Complete Model Calculation finished!")
 }
 

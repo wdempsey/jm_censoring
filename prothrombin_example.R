@@ -45,7 +45,7 @@ X_2 <- function(t, pat_table) {
   # Returns the revival vector
   # and the log(s+delta)
   # and treatment vectors
-  delta = 1
+  delta = 1/365
   revival = t- pat_table$obs_times
   log_rev = log(revival + delta)
   treatment = pat_table$treatment

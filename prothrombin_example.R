@@ -58,7 +58,7 @@ Sigma_calc <- function(cov_params, pat_table) {
   sigmasq_0 = cov_params[1]
   sigmasq_1 = cov_params[2]
   sigmasq_2 = cov_params[3]
-  lambda = cov_params[4]
+  lambda = 1.67
   
   return( sigmasq_0 * diag(length(pat_table$obs_times)) + sigmasq_1 * outer(rep(1,length(pat_table$obs_times)),rep(1,length(pat_table$obs_times)))
           + sigmasq_2 * exp(-abs(outer(pat_table$obs_times, pat_table$obs_times,"-"))/lambda))
@@ -94,7 +94,7 @@ baseline_model <- regress(Table_2_uncens$obs~Table_2_uncens$treatment+Table_2_un
 summary(baseline_model)
 
 mean_params <- baseline_model$beta
-cov_params <- c(baseline_model$sigma,cov_lambda)
+cov_params <- c(baseline_model$sigma)
 theta <- (sum(Table_1$cens))/sum(Table_1$survival)
 
 ### Running the Code on Only Censored Individuals ##
@@ -109,7 +109,7 @@ recipient = "dempsey.walter@gmail.com"
 if(args[1] == 'cens') {
 	print('Computing Censored Only Model')
 
-	rev_mod <- revival_model(Table_1_cens, Table_2_cens, X_1, 	X_2, Sigma_calc, mean_params, cov_params, theta)
+	rev_mod <- revival_model(Table_1_cens, Table_2_cens, X_1, 	X_2, Sigma_calc, mean_params, cov_params, theta, fixed = TRUE)
 	
 	mle = rev_mod$mle
 	hess = rev_mod$hess
@@ -126,7 +126,7 @@ if(args[1] == 'cens') {
 if(args[1] == 'uncens') {
 	print('Computing UnCensored Only Model')
 
-	rev_mod <- revival_model(Table_1_uncens, Table_2_uncens, X_1, 	X_2, Sigma_calc, mean_params, cov_params, theta)
+	rev_mod <- revival_model(Table_1_uncens, Table_2_uncens, X_1, 	X_2, Sigma_calc, mean_params, cov_params, theta, fixed = TRUE)
 	
 	mle = rev_mod$mle
 	hess = rev_mod$hess
@@ -143,7 +143,7 @@ if(args[1] == 'uncens') {
 if(args[1] == 'compl') {
 	print('Computing Complete Model')
 
-	rev_mod_compl <- revival_model(Table_1, Table_2, X_1, X_2, Sigma_calc, mean_params, cov_params, theta)
+	rev_mod_compl <- revival_model(Table_1, Table_2, X_1, X_2, Sigma_calc, mean_params, cov_params, theta, fixed = TRUE)
 
 	mle_compl = rev_mod_compl$mle
 	hess_compl = rev_mod_compl$hess

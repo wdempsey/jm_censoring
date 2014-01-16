@@ -1,6 +1,7 @@
 ## Turn Command Line Arguments On
 
 args <- commandArgs(TRUE)
+
 library(mail)
 
 # Create the Correct Tables for Prothrombin Data
@@ -28,7 +29,7 @@ Table_1 = data.frame(id)
 
 id_check <- function(x) {which(Liver_Data$id == x)[1]}
 
-Table_1$cens = Liver_Data$cens[as.numeric(lapply(Table_1$id, id_check))]
+Table_1$cens = 1-Liver_Data$cens[as.numeric(lapply(Table_1$id, id_check))]
 Table_1$survival = Liver_Data$survival[as.numeric(lapply(Table_1$id, id_check))]
 
 # Create the Mean and Covariance Functions
@@ -75,8 +76,8 @@ Table_2$revival =  Table_2$survival - Table_2$obs_times
 Table_2$logrev = log(Table_2$revival+delta)
 
 
-Table_2_uncens = Table_2[Table_2$cens==1,c(1:4,6:8)]
-Table_1_uncens = Table_1[Table_1$cens==1,]
+Table_2_uncens = Table_2[Table_2$cens==0,c(1:4,6:8)]
+Table_1_uncens = Table_1[Table_1$cens==0,]
 
 source('http://www.stat.uchicago.edu/~pmcc/courses/regress.R')
 
@@ -98,8 +99,8 @@ theta <- (sum(Table_1$cens))/sum(Table_1$survival)
 
 ### Running the Code on Only Censored Individuals ##
 
-Table_2_cens = Table_2[Table_2$cens==0,c(1:4,6:8)]
-Table_1_cens = Table_1[Table_1$cens==0,]
+Table_2_cens = Table_2[Table_2$cens==1,c(1:4,6:8)]
+Table_1_cens = Table_1[Table_1$cens==1,]
 
 source('MLE_censoring.R')
 
@@ -130,7 +131,7 @@ if(args[1] == 'uncens') {
 	mle = rev_mod$mle
 	hess = rev_mod$hess
     conv = rev_mod$conv
-
+	
 	write.table(mle, 'prot_mle_uncens')
 	write.table(hess, 'prot_hess_uncens')
     write.table(conv, 'prot_conv_uncens')

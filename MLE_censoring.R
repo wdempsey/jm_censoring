@@ -122,7 +122,7 @@ log_lik_vector <- function(params, table1 = Table_1, table2 = Table_2) {
 
 log_lik_vector_fixed <- function(theta) {
   llik_theta <- function(params) {
-    return(log_lik_vector(c(params,theta)))
+  return(log_lik_vector(c(params,theta)))
   }
   return(llik_theta)  
 }
@@ -131,6 +131,10 @@ log_lik_vector_fixed <- function(theta) {
 
 print('Got to The Optimization Component')
 
+#maxcens = max(Table_1$survival[Table_1$cens == 1])
+
+#cdf_T(0.25, maxcens)
+
 if(fixed == TRUE) {
   print('Fixed Theta For Optimization')
   inits <- c(mean_params, cov_params)
@@ -138,7 +142,7 @@ if(fixed == TRUE) {
 }
 if(fixed == FALSE) {
   inits <- c(mean_params, cov_params, theta)
-  op_llik <- optim(inits, log_lik_vector,lower = c(rep(-Inf,length(mean_params)), rep(0, length(cov_params)), 0), upper = c(rep(Inf, length(mean_params) + length(cov_params)), 5))  
+  op_llik <- optim(inits, log_lik_vector,lower = c(rep(-Inf,length(mean_params)), rep(0, length(cov_params)), 0), upper = c(rep(Inf, length(mean_params) + length(cov_params)), max_lambda))  
 }
 
 print(op_llik$convergence)
@@ -158,8 +162,15 @@ obs_inf <- function(log_lik_vector, mle_est) {
 	return(hessian(log_lik_vector, mle_est))	
 }
 
-Hess = obs_inf(log_lik_vector, mle_est)
+if(fixed == TRUE) {
+	Hess = obs_inf(log_lik_vector_fixed(theta), mle_est)	
+}
 
-return(list(mle = mle_est, hess = Hess))
+if(fixed == FALSE) {
+	Hess = obs_inf(log_lik_vector, mle_est)	
+}
+
+
+return(list(mle = mle_est, hess = Hess, conv = op_llik$convergence))
 
 }

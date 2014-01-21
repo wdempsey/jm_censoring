@@ -10,7 +10,7 @@ cens_sigma <- rep(0,0)
 
 rev_mle <- rep(0,0)
 
-for(k in 1:11) {
+# for(k in 1:11) {
 n_patients = 100
 
 # Table 1 ~ Survival Data is Exponential with rate parameter lambda = 5
@@ -145,21 +145,25 @@ Hess = rev$hess
 
 rev_mle = cbind(rev_mle, mle)
 
-}
+#}
 
 ### Efficiency Calculations
 
-write.table(rbind(apply(rbind(compl_beta,compl_sigma),1,mean),
-apply(rbind(cens_beta,cens_sigma),1,mean),
-apply(mle_estimates,1,mean)[1:4]),
-'sim_mean_estimates')
+write.table(rev_mle,'rev_mle', append = TRUE)
+write.table(c(compl_beta,compl_sigma), 'compl_mle', append = TRUE)
+write.table(c(mean_params,cov_params,theta), 'compl_mle', append = TRUE)
 
-write.table(rbind(apply(rbind(compl_beta,compl_sigma),1,sd),
-apply(rbind(cens_beta,cens_sigma),1,sd),
-apply(mle_estimates,1,sd)[1:4]),
-'sim_sd_estimates')
+#write.table(rbind(apply(rbind(compl_beta,compl_sigma),1,mean),
+#apply(rbind(cens_beta,cens_sigma),1,mean),
+#apply(mle_estimates,1,mean)[1:4]),
+#'sim_mean_estimates')
 
-from = sprintf("<admirR@\\%s>", Sys.info()[4])
-to = "<dempsey.walter@gmail.com>"
-subject <- "Completed The Simulation"
-body <- list("Check The Output")
+#write.table(rbind(apply(rbind(compl_beta,compl_sigma),1,sd),
+#apply(rbind(cens_beta,cens_sigma),1,sd),
+#apply(mle_estimates,1,sd)[1:4]),
+#'sim_sd_estimates')
+
+#from = sprintf("<admirR@\\%s>", Sys.info()[4])
+#to = "<dempsey.walter@gmail.com>"
+#subject <- "Completed The Simulation"
+#body <- list("Check The Output")

@@ -126,14 +126,15 @@ X_2 <- function(t, pat_table) {
 Sigma_calc <- function(cov_params, pat_table) {
   sigmasq_0 = cov_params[1]
   sigmasq_1 = cov_params[2]
-  lambda = cov_params[3]
+#   lambda = cov_params[3]
+  lambda <- 1
   return( sigmasq_0 * diag(length(pat_table$obs_times)) + sigmasq_1 * exp(-abs(outer(pat_table$obs_times, pat_table$obs_times,"-"))/lambda))
 }
 
 # Initialization
 
 mean_params <- model2$beta
-cov_params <- c(model2$sigma,lambda)
+cov_params <- c(model2$sigma)
 theta <- (sum(Table_1_cens$cens))/sum(Table_1_cens$survival)
 
 source('MLE_censoring.R')

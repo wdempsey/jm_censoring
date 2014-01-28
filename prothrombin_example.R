@@ -89,13 +89,13 @@ cov_lambda <- 1.67
   
 Patient.ds <- exp(-abs(outer(Table_2_uncens$revival,Table_2_uncens$revival, "-"))/cov_lambda) *Patient # Patient Specific Exponential Covariance Matrix
 
-baseline_model <- regress(Table_2_uncens$obs~Table_2_uncens$treatment+Table_2_uncens$survival+Table_2_uncens$revival+Table_2_uncens$logrev, ~Patient + Patient.ds)
+baseline_model <- regress(Table_2_uncens$obs~Table_2_uncens$treatment+Table_2_uncens$survival+Table_2_uncens$revival+Table_2_uncens$logrev, ~Patient + Patient.ds, kernel = 0)
   
 summary(baseline_model)
 
 mean_params <- baseline_model$beta
 cov_params <- c(baseline_model$sigma)
-theta <- (sum(Table_1$cens))/sum(Table_1$survival)
+theta <- (sum(1-Table_1$cens))/sum(Table_1$survival)
 
 ### Running the Code on Only Censored Individuals ##
 

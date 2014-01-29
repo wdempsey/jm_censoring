@@ -109,7 +109,7 @@ recipient = "dempsey.walter@gmail.com"
 if(args[1] == 'cens') {
 	print('Computing Censored Only Model')
 
-	rev_mod <- revival_model(Table_1_cens, Table_2_cens, X_1, 	X_2, Sigma_calc, mean_params, cov_params, theta, fixed = TRUE)
+	rev_mod <- revival_model(Table_1_cens, Table_2_cens, X_1, X_2, Sigma_calc, mean_params, cov_params, theta, fixed = TRUE)
 	
 	mle = rev_mod$mle
 	hess = rev_mod$hess

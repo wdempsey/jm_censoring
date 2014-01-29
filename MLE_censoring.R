@@ -16,27 +16,6 @@ revival_model <- function(Table_1, Table_2, X_1, X_2, Sigma_calc, mean_params, c
 			# Column 3 = Observed Value (called 'obs')
 			# Column 4-n = Observed Covariates to Be Used in Fitting Model
 			
-X_1 <- function(pat_table) {
-  const = rep(1, dim(pat_table)[1])
-  return(const)
-}
-
-X_2 <- function(t, pat_table) {
-  # Returns the revival vector
-  revival = t- pat_table$obs_times
-  return(revival)
-}
-
-Sigma_calc <- function(cov_params, pat_table) {
-  sigmasq_0 = cov_params[1]
-  sigmasq_1 = cov_params[2]
-#   lambda = cov_params[3]
-  lambda <- 1
-  return( sigmasq_0 * diag(length(pat_table$obs_times)) + sigmasq_1 * exp(-abs(outer(pat_table$obs_times, pat_table$obs_times,"-"))/lambda))
-}
-
-
-
 Cov <- function(t, pat_table) {
   if (dim(pat_table)[1] == 1) {
     return(c(X_1(pat_table), X_2(t, pat_table)))
@@ -137,13 +116,13 @@ log_lik <- function(mean_params, cov_params, theta, table1 = Table_1, table2 = T
 log_lik_vector <- function(params, table1 = Table_1, table2 = Table_2) {
 	mean_params = params[1:length(mean_params)]
 	cov_params = params[(length(mean_params)+1):(length(params)-1)]
-  theta = params[length(params)]
+	theta = params[length(params)]
 	return(-log_lik(mean_params, cov_params, theta, table1, table2))
 }
 
-log_lik_vector_fixed <- function(mean_params,theta) {
-  llik_theta <- function(cov_params) {
-  return(log_lik_vector(c(mean_params,cov_params,theta)))
+log_lik_vector_fixed <- function(theta) {
+  llik_theta <- function(params) {
+  return(log_lik_vector(c(params,theta)))
   }
   return(llik_theta)  
 }
@@ -287,6 +266,21 @@ grad_calc_vector <- function(params, table1 = Table_1, table2 = Table_2) {
 	return(grad_calc(mean_params, cov_params, theta, table1, table2))
 }
 
+grad_calc_vector_fixed <- function(theta) {
+	grad_theta <- function(params) {
+		return(grad_calc_vector(c(params, theta)))
+	}
+	return(grad_calc)
+}
+
+log_lik_vector_fixed <- function(theta) {
+  llik_theta <- function(params) {
+  return(log_lik_vector(c(params,theta)))
+  }
+  return(llik_theta)  
+}
+
+
 # Fit from the Initialization Given By Model_Cens
 
 print('Got to The Optimization Component')
@@ -300,13 +294,11 @@ max_theta = 5*theta
 if(fixed == TRUE) {
   print('Fixed Theta For Optimization')
   inits <- c(mean_params, cov_params)
-  op_llik <- optim(inits, log_lik_vector_fixed(theta),lower = c(rep(-Inf,length(mean_params)), rep(0, length(cov_params)), 0), upper = c(rep(Inf, length(mean_params) + length(cov_params)), 5))  
+  op_llik <- optim(inits, log_lik_vector_fixed(theta),grad_calc_vector_fixed(theta), lower = c(rep(-Inf,length(mean_params)), rep(0, length(cov_params)), 0), upper = c(rep(Inf, length(mean_params) + length(cov_params)), 5))  
 }
 if(fixed == FALSE) {
   inits <- c(mean_params, cov_params, theta)
-  ptm <- proc.time()
   op_llik <- optim(inits, log_lik_vector,grad_calc_vector, lower = c(rep(-Inf,length(mean_params)), rep(0, length(cov_params)), 0), upper = c(rep(Inf, length(mean_params) + length(cov_params)), max_theta))  
-  print(proc.time()-ptm)
 }
 
 print(op_llik$convergence)

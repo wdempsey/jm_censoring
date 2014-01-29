@@ -294,7 +294,7 @@ max_theta = 5*theta
 if(fixed == TRUE) {
   print('Fixed Theta For Optimization')
   inits <- c(mean_params, cov_params)
-  op_llik <- optim(inits, log_lik_vector_fixed(theta),grad_calc_vector_fixed(theta), lower = c(rep(-Inf,length(mean_params)), rep(0, length(cov_params)), 0), upper = c(rep(Inf, length(mean_params) + length(cov_params)), 5))  
+  op_llik <- optim(inits, log_lik_vector_fixed(theta), lower = c(rep(-Inf,length(mean_params)), rep(0, length(cov_params)), 0), upper = c(rep(Inf, length(mean_params) + length(cov_params)), 5))  
 }
 if(fixed == FALSE) {
   inits <- c(mean_params, cov_params, theta)

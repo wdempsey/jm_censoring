@@ -102,6 +102,21 @@ theta <- (sum(1-Table_1$cens))/sum(Table_1$survival)
 Table_2_cens = Table_2[Table_2$cens==1,c(1:4,6:8)]
 Table_1_cens = Table_1[Table_1$cens==1,]
 
+### Calculate Gradient of the Log-Likelihood ###
+K_1 <- function(pat_table) {
+	return(diag(dim(pat_table)[1]))
+}
+
+K_2 <- function(pat_table) {
+	return(outer(rep(1,length(pat_table$obs_times)),rep(1,length(pat_table$obs_times))))
+}
+
+K_3 <- function(pat_table) {
+	return(exp(-abs(outer(pat_table$obs_times, pat_table$obs_times,"-"))/1))
+}
+
+K = list(K_1, K_2, K_3)
+
 source('MLE_censoring.R')
 
 recipient = "dempsey.walter@gmail.com"
@@ -109,7 +124,7 @@ recipient = "dempsey.walter@gmail.com"
 if(args[1] == 'cens') {
 	print('Computing Censored Only Model')
 
-	rev_mod <- revival_model(Table_1_cens, Table_2_cens, X_1, X_2, Sigma_calc, mean_params, cov_params, theta, fixed = TRUE)
+	rev_mod <- revival_model(Table_1_cens, Table_2_cens, X_1, X_2, Sigma_calc, K, mean_params, cov_params, theta, fixed = TRUE)
 	
 	mle = rev_mod$mle
 	hess = rev_mod$hess
@@ -157,3 +172,42 @@ if(args[1] == 'compl') {
     sendmail(recipient, subject="Notification from R", message="Complete Model Calculation finished!")
 }
 
+if(args[1] == 'imp') {
+	print('Computing Imputation Model')
+
+	### Imputation Model ###
+
+	source('Imputation_censoring.R')
+
+	my_model <- function(table1, table2) {
+		### Build the Table Mean Functions For the Model
+		
+		delta = 1/365
+		censored <- function(x) {table1$cens[table1$id == x]}
+		survival <- function(x) {table1$survival[table1$id == x]}
+
+		table2$cens = as.numeric(lapply(table2$id, censored))
+		table2$survival = as.numeric(lapply(table2$id, survival))
+		table2$revival =  table2$survival - table2$obs_times
+		table2$logrev = log(table2$revival+delta)
+
+		### Compute the Covariance Models
+
+		Patient <- outer(table2$id, table2$id, "==")  # Patient Indicator Matrix
+
+		cov_lambda <- 1.67
+  
+		Patient.ds <- exp(-abs(outer(table2$revival,table2$revival, "-"))/cov_lambda) *Patient # Patient Specific Exponential Covariance Matrix
+
+		model <- regress(table2$obs~table2$treatment+table2$survival+table2$revival+table2$logrev, ~Patient + Patient.ds, kernel = 0)
+		
+		return(model)
+	
+	}
+
+	M = 20
+
+	rev_imp <- revival_model_imputation(Table_1_cens, Table_2_rev, X_1, X_2, Sigma_calc, my_model, M, mean_params, cov_params, theta, 	fixed = FALSE)
+
+    sendmail(recipient, subject="Notification from R", message="Imputation Model Calculation finished!")
+}

@@ -1,4 +1,4 @@
-revival_model <- function(Table_1, Table_2, X_1, X_2, Sigma_calc, mean_params, cov_params, theta, fixed = FALSE) {
+revival_model <- function(Table_1, Table_2, X_1, X_2, Sigma_calc, K, mean_params, cov_params, theta, fixed = FALSE) {
 	
 	# Fits a Components of Variance Model
 
@@ -129,16 +129,17 @@ log_lik_vector_fixed <- function(theta) {
 
 
 
-### Calculate Gradient of the Log-Likelihood ###
-K_1 <- function(pat_table) {
-	return(diag(dim(pat_table)[1]))
-}
+# ### Calculate Gradient of the Log-Likelihood ###
+# K_1 <- function(pat_table) {
+	# return(diag(dim(pat_table)[1]))
+# }
 
-K_2 <- function(pat_table) {
-	 return(exp(-abs(outer(pat_table$obs_times, pat_table$obs_times,"-"))/1))
-}
+# K_2 <- function(pat_table) {
+	 # return(exp(-abs(outer(pat_table$obs_times, pat_table$obs_times,"-"))/1))
+# }
 
-# do.call(paste("K_",2, sep = ""),list(sigmasq_1,pat_table))
+# K = list(K_1, K_2)
+num_varcomp = length(K)
 
 expected_terms <- function(mean_params, cov_params, theta, pat, table1, table2) {	
 	pat_table = table2[table2$id == pat,]
@@ -151,8 +152,6 @@ expected_terms <- function(mean_params, cov_params, theta, pat, table1, table2) 
 	
 	Sigma = Sigma_calc(cov_params,pat_table)
 	Inv_Sigma = solve(Sigma)
-	K1 = K_1(pat_table)
-	K2 = K_2(pat_table)
 
 	quad_calc <- function(T) {
 		X_T = Cov(T, pat_table)
@@ -173,35 +172,40 @@ expected_terms <- function(mean_params, cov_params, theta, pat, table1, table2) 
 		}
 	}
 	
-	K1_calc <- function(T) {
-		X_T = Cov(T, pat_table)
-		W_T = pat_table$obs - X_T%*%mean_params
-		return(t(W_T)%*%Inv_Sigma%*%K1%*%Inv_Sigma%*%W_T)
-	}		
-
-	K2_calc <- function(T) {
-		X_T = Cov(T, pat_table)
-		W_T = pat_table$obs - X_T%*%mean_params
-		return(t(W_T)%*%Inv_Sigma%*%K2%*%Inv_Sigma%*%W_T)
-	}		
+	K_i_calc <- function(i) {
+		quad_K_i <- function(T) {
+			X_T = Cov(T, pat_table)
+			W_T = pat_table$obs - X_T%*%mean_params
+			K = do.call(paste("K_",i, sep = ""), list(pat_table))
+			return(t(W_T)%*%Inv_Sigma%*%K%*%Inv_Sigma%*%W_T)
+		}			
+	}
 
 	quad = Vectorize(quad_calc)(eval_T)
 	S = Vectorize(S_calc)(eval_T)
-	K1_vec = Vectorize(K1_calc)(eval_T)
-	K2_vec = Vectorize(K2_calc)(eval_T)
 
 	probs = cond_dens(eval_T)
 
 	norm_probs = probs / sum(probs)
+	
+	exp_K = list()
+	trace_K = list()
+
+	for(i in 1:num_varcomp) {
+		quad_K_i = K_i_calc(i)	
+		K_i_vec = Vectorize(quad_K_i)(eval_T)
+		K = do.call(paste("K_",i, sep = ""), list(pat_table))
+
+		exp_K[[i]] = sum(norm_probs*K_i_vec)
+		trace_K[[i]] = sum(diag(Inv_Sigma%*%K))
+	}
 
 	return(list("exp_T" = sum(eval_T*norm_probs),
 	"exp_quad" = sum(quad*norm_probs), 
 	"exp_S" = S%*%norm_probs, 
-	"exp_K1" = sum(K1_vec*norm_probs),
-	"exp_K2" = sum(K2_vec*norm_probs),
-	"trace_K1" = sum(diag(Inv_Sigma%*%K1)),
-	"trace_K2" = sum(diag(Inv_Sigma%*%K2)))
-	)
+	"exp_K" = exp_K,
+	"trace_K" = trace_K
+	))
 	
 }	
 
@@ -209,16 +213,15 @@ expected_terms <- function(mean_params, cov_params, theta, pat, table1, table2) 
 grad_calc <- function(mean_params, cov_params, theta, table1 = Table_1, table2 = Table_2) {
 	grad_lambda = 0
 	grad_beta = 0
-	grad_sigma1 = 0
-	grad_sigma2 = 0
+	grad_sigma = list()
+	for(i in 1:num_varcomp) {	
+		grad_sigma[[i]] = 0
+	}
 	num_pats = dim(table1)[1]
 	for (pat in 1:num_pats) {
 		pat_table = table2[table2$id == pat, ]
 		Sigma = Sigma_calc(cov_params, pat_table)
 		Inv_Sigma = solve(Sigma)
-			
-		K1 = K_1(pat_table)
-		K2 = K_2(pat_table)
 			
 		if(table1$cens[pat] == 0) {
 			# Lambda
@@ -230,14 +233,17 @@ grad_calc <- function(mean_params, cov_params, theta, table1 = Table_1, table2 =
 			W_T = pat_table$obs - X_T%*%mean_params	
 				
 			if( dim(pat_table)[1] == 1) {
-				grad_beta = grad_beta + (X_T)%*%Inv_Sigma%*%W_T							}
+				grad_beta = grad_beta + (X_T)%*%Inv_Sigma%*%W_T
+			}
 			else {
 				grad_beta = grad_beta + t(X_T)%*%Inv_Sigma%*%W_T		
 			}
 								
 			# Sigma			
-			grad_sigma1 = grad_sigma1 +t(W_T)%*%Inv_Sigma%*%K1%*%Inv_Sigma%*%W_T/2 - sum(diag(Inv_Sigma%*%K1))/2
-			grad_sigma2 = grad_sigma2 +t(W_T)%*%Inv_Sigma%*%K2%*%Inv_Sigma%*%W_T/2 - sum(diag(Inv_Sigma%*%K2))/2
+			for(i in 1:num_varcomp) {	
+				K = do.call(paste("K_",i, sep = ""), list(pat_table))
+				grad_sigma[[i]] = grad_sigma[[i]] + t(W_T)%*%Inv_Sigma%*%K%*%Inv_Sigma%*%W_T/2 - sum(diag(Inv_Sigma%*%K))/2
+			}
 
 		}
 		if(table1$cens[pat] == 1) {
@@ -250,12 +256,13 @@ grad_calc <- function(mean_params, cov_params, theta, table1 = Table_1, table2 =
 			# Beta
 			grad_beta = grad_beta + exp_terms$exp_S
 				
-			# Sigma			
-			grad_sigma1 = grad_sigma1 - exp_terms$trace_K1/2 + exp_terms$exp_K1/2
-			grad_sigma2 = grad_sigma2 - exp_terms$trace_K2/2 + exp_terms$exp_K2/2
+			# Sigma					
+			for(i in 1:num_varcomp) {	
+				grad_sigma[[i]] = grad_sigma[[i]] - exp_terms$trace_K[[i]]/2 + exp_terms$exp_K[[i]]/2
+			}
 		}
 	}
-	return(-c(grad_beta,grad_sigma1,grad_sigma2, grad_lambda))
+	return(-c(grad_beta,unlist(grad_sigma), grad_lambda))
 }
 
 grad_calc_vector <- function(params, table1 = Table_1, table2 = Table_2) {

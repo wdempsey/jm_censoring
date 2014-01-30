@@ -1,5 +1,7 @@
 # Basic Example: 100 patients with a linear revival model, and exponential survival model 
 
+library(mail)
+
 source('http://www.stat.uchicago.edu/~pmcc/courses/regress.R')
 
 compl_beta <- rep(0,0)
@@ -131,6 +133,17 @@ Sigma_calc <- function(cov_params, pat_table) {
   return( sigmasq_0 * diag(length(pat_table$obs_times)) + sigmasq_1 * exp(-abs(outer(pat_table$obs_times, pat_table$obs_times,"-"))/lambda))
 }
 
+### Calculate Gradient of the Log-Likelihood ###
+K_1 <- function(pat_table) {
+	return(diag(dim(pat_table)[1]))
+}
+
+K_2 <- function(pat_table) {
+	 return(exp(-abs(outer(pat_table$obs_times, pat_table$obs_times,"-"))/1))
+}
+
+K = list(K_1, K_2)
+
 # Initialization
 
 mean_params <- model2$beta
@@ -139,32 +152,46 @@ theta <- (sum(Table_1_cens$cens))/sum(Table_1_cens$survival)
 
 source('MLE_censoring.R')
 
-rev <- revival_model(Table_1_cens, Table_2_rev, X_1, X_2, Sigma_calc, mean_params, cov_params, theta, fixed = FALSE)
+rev <- revival_model(Table_1_cens, Table_2_rev, X_1, X_2, Sigma_calc, K, mean_params, cov_params, theta, fixed = FALSE)
+rev_fixed <- revival_model(Table_1_cens, Table_2_rev, X_1, X_2, Sigma_calc, K, mean_params, cov_params, theta, fixed = TRUE)
 
-mle = rev$mle
-Hess = rev$hess
+### Imputation Model ###
 
-rev_mle = cbind(rev_mle, mle)
+source('Imputation_censoring.R')
 
-#}
+my_model <- function(table1, table2) {
+	### Build the Table Mean Functions For the Model
+	
+	survival <- function(x) {table1$survival[table1$id == x]}
+	
+	table2$revival = as.numeric(lapply(table2$id, survival)) - table2$obs_times 
+	
+	### Compute the Covariance Models
+	Patient_cens <- outer(table2$id, table2$id, "==")  # Patient Indicator Matrix
 
-### Efficiency Calculations
+	cov_lambda <- 1.0; Patient_cens.ds <- exp(-abs(outer(table2$revival, table2$revival, "-"))/cov_lambda) *Patient_cens # Patient Specific Exponential Covariance Matrix
 
-write.table(rev_mle,'rev_mle', append = TRUE)
-write.table(c(compl_beta,compl_sigma), 'compl_mle', append = TRUE)
-write.table(c(mean_params,cov_params,theta), 'compl_mle', append = TRUE)
+	model <- regress(table2$obs ~ table2$revival, ~Patient_cens.ds, kernel = 1)
+	
+	return(model)
+	
+}
 
-#write.table(rbind(apply(rbind(compl_beta,compl_sigma),1,mean),
-#apply(rbind(cens_beta,cens_sigma),1,mean),
-#apply(mle_estimates,1,mean)[1:4]),
-#'sim_mean_estimates')
+M = 20
 
-#write.table(rbind(apply(rbind(compl_beta,compl_sigma),1,sd),
-#apply(rbind(cens_beta,cens_sigma),1,sd),
-#apply(mle_estimates,1,sd)[1:4]),
-#'sim_sd_estimates')
+rev_imp <- revival_model_imputation(Table_1_cens, Table_2_rev, X_1, X_2, Sigma_calc, my_model, M, mean_params, cov_params, theta, fixed = FALSE)
 
-#from = sprintf("<admirR@\\%s>", Sys.info()[4])
-#to = "<dempsey.walter@gmail.com>"
-#subject <- "Completed The Simulation"
-#body <- list("Check The Output")
+
+results = cbind(rev$mle, c(rev_fixed$mle,theta), c(rev_imp$mle,theta))
+
+if (rev$conv == 0 & rev_fixed$conv == 0) {
+	write.table(results,"results", append = TRUE)
+
+	sendmail(recipient, subject="Notification from R", message="Simulation Successful!")
+	
+}
+else {
+	sendmail(recipient, subject="Notification from R", message="Simulation Failure! Get 'em Next Time, Kid.")
+}
+
+

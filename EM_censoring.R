@@ -254,8 +254,7 @@ info_exp <- function(mean_params_old, cov_params_old, theta_old, em_mean_params,
 			term1 = (t(X_T%*%dbeta_dsigma_l)%*%Inv_Sigma%*%K_j + t(W_T)%*%Inv_Sigma%*%K_l%*%Inv_Sigma%*%K_j)%*%Inv_Sigma%*%W_T
 	
 			term2 = t(W_T)%*%Inv_Sigma%*%K_j%*%(Inv_Sigma%*%K_l%*%Inv_Sigma%*%W_T+Inv_Sigma%*%X_T%*%dbeta_dsigma_l)
-			term1+term2	
-			return(-(term1+term2))
+			return(term1+term2)
 		}	
 		return(h)
 	}
@@ -343,13 +342,16 @@ info_exp <- function(mean_params_old, cov_params_old, theta_old, em_mean_params,
 ### EM Algorithm ###
 
 # Initial Estimates
-theta_old = 1/mean( table1$survival[table1$cens == 0])
+theta_old = sum(table1$cens==0)/sum( table1$survival)
 mean_params_old = model2$beta
 cov_params_old = model2$sigma
 
 
 # EM Algo #
+tol = 0.08
+ptm <- proc.time()
 
+for (iter in 1:1000) {
 
 YSX_sum = 0
 XSX_sum = 0
@@ -391,26 +393,41 @@ for (pat in table1$id) {
 	Score1 = Score1 + -exp_pat$trace_K1/2+exp_pat$exp_K1/2
 	Score2 = Score2 + -exp_pat$trace_K2/2+exp_pat$exp_K2/2
 
-	add_info[1,1] = exp_pat$trace_K1_K1/2-exp_pat$dW_dsigma_1_1/2
-	add_info[1,2] = add_info[2,1] = exp_pat$trace_K1_K2/2-exp_pat$dW_dsigma_1_2/2
-	add_info[2,2] = exp_pat$trace_K2_K2/2-exp_pat$dW_dsigma_2_2/2
+	add_info[1,1] = exp_pat$trace_K1_K1/2+exp_pat$dW_dsigma_1_1/2
+	add_info[1,2] = add_info[2,1] = exp_pat$trace_K1_K2/2+exp_pat$dW_dsigma_1_2/2
+	add_info[2,2] = exp_pat$trace_K2_K2/2+exp_pat$dW_dsigma_2_2/2
 	info = info + add_info
 }
 
+Score_old = Score
 Score = c(Score1,Score2)
+
+print(cbind(Score_old,Score))
+
+print(solve(info)%*%Score)
 
 em_cov_params = cov_params_old + solve(info)%*%Score
 
 em_cov_params = as.numeric(lapply(em_cov_params, function(x){max(x,0)}))
 
-cbind(mean_params_old,em_mean_params)
-cbind(cov_params_old,em_cov_params)
-cbind(theta_old,em_theta)
+print(cbind(mean_params_old,em_mean_params))
+print(cbind(cov_params_old,em_cov_params))
+print(cbind(theta_old,em_theta))
 
-max(c(abs(em_mean_params-mean_params_old),
+err = max(c(abs(em_mean_params-mean_params_old),
 abs(em_cov_params-cov_params_old),
 abs(em_theta-theta_old)))
+
+print(paste("error is:", round(err,3)))
+if(err < tol) {break}
 
 mean_params_old = em_mean_params
 cov_params_old = em_cov_params
 theta_old = em_theta
+
+}
+proc.time()-ptm
+
+c(em_mean_params,em_cov_params,em_theta)
+c(model1$beta,model1$sigma, theta)
+c(model2$beta,model2$sigma, theta)

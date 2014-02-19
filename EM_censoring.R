@@ -83,6 +83,62 @@ h <- function(mean_params, cov_params, theta, pat_table) {
 	
 }
 
+logint <- function(mean_params, cov_params, theta, pat_table,c) {
+	# Returns the log of the integral from censoring to infty 
+	# of the joint density of (Y,t) 
+	
+	h_vec = Vectorize(h(mean_params, cov_params,theta,pat_table))
+	return(log(integrate(h_vec, c, Inf)$value))
+}
+
+### Need -log(1-F(c))
+
+cdf_T <- function(theta, x) {
+	dens = f(theta)
+	return(integrate(Vectorize(dens), 0,x)$value)
+}
+
+log_cdf_T <- function( theta, c) {
+	return(-log(1-cdf_T(theta,c)))
+}
+
+log_lik_cens <- function(mean_params, cov_params, theta, pat_table,c) {
+	# Log-likelhood for Censored Patients
+	return( log_cdf_T (theta,c) + logint(mean_params, cov_params, theta, pat_table,c))
+}
+
+log_lik_uncens <- function(mean_params, cov_params, theta, pat_table,T) {
+	# Log-Likelihood For Uncensored Patients
+	return(log( f(theta)(T) ) + log ( g(mean_params, cov_params, pat_table)(T)))
+}
+
+### Complete Log-Likelihood
+
+log_lik <- function(mean_params, cov_params, theta, table1 = Table_1, table2 = Table_2) {
+	llik = 0
+	for (pat in table1$id) {
+		pat_table = table2[table2$id == pat,]
+		
+		if (table1$cens[table1$id == pat] == 1) {
+			c = table1$survival[table1$id == pat]
+			llik = llik + log_lik_cens(mean_params, cov_params, theta, pat_table,c)
+		}
+		if (table1$cens[table1$id == pat] == 0) {
+			T = table1$survival[table1$id == pat]
+			llik = llik + log_lik_uncens(mean_params, cov_params, theta, pat_table,T)
+		}
+	}	
+	return(llik)
+}
+
+log_lik_vector <- function(params, table1 = Table_1, table2 = Table_2) {
+	mean_params = params[1:length(mean_params)]
+	cov_params = params[(length(mean_params)+1):(length(params)-1)]
+	theta = params[length(params)]
+	return(-log_lik(mean_params, cov_params, theta, table1, table2))
+}
+
+
 #### EM Algorithm  ####
 
 K_1 <- function(sigmasq_1, pat_table) {
@@ -95,10 +151,15 @@ K_2 <- function(sigmasq_2, pat_table) {
 
 K = list(K_1,K_2)
 
-expected_terms <- function(mean_params_old, cov_params_old, theta_old, pat, table1, table2) {
+expected_terms <- function(mean_params_old, cov_params_old, theta_old, cov_params, pat, table1, table2) {
 		
 	pat_table = table2[table2$id == pat,]
 	cens = table1$cens[table1$id == pat]
+	
+	Sigma = Sigma_calc(cov_params,pat_table)
+	Inv_Sigma = solve(Sigma)
+	K1 = K_1(1, pat_table)
+	K2 = K_2(1, pat_table)
 	
 	quad_XSX_calc <- function(T) {
 		X_T = Cov(T, pat_table)
@@ -173,11 +234,6 @@ expected_terms <- function(mean_params_old, cov_params_old, theta_old, pat, tabl
 	cond_dens = Vectorize(h(mean_params_old, cov_params_old, theta_old, pat_table))
 
 	eval_T = seq(c, c+10, by = 0.1)
-	
-	Sigma = Sigma_calc(cov_params,pat_table)
-	Inv_Sigma = solve(Sigma)
-	K1 = K_1(cov_params[1], pat_table)
-	K2 = K_2(cov_params[2], pat_table)
 
 
 	quad_XSX = Vectorize(quad_XSX_calc)(eval_T)
@@ -209,11 +265,6 @@ expected_terms <- function(mean_params_old, cov_params_old, theta_old, pat, tabl
 	if (cens == 0) {
 	T = table1$survival[table1$id == pat]
 	
-	Sigma = Sigma_calc(cov_params,pat_table)
-	Inv_Sigma = solve(Sigma)
-	K1 = K_1(cov_params[1], pat_table)
-	K2 = K_2(cov_params[2], pat_table)
-	
 	quad_XSX = quad_XSX_calc(T)
 	quad_YSX = quad_YSX_calc(T)
 	
@@ -223,7 +274,7 @@ expected_terms <- function(mean_params_old, cov_params_old, theta_old, pat, tabl
 	quad_YS_K1_SX = quad_YS_K1_SX_calc(T)
 	quad_YS_K2_SX = quad_YS_K2_SX_calc(T)
 	
-	return(list("exp_T" = sum(eval_T*norm_probs),
+	return(list("exp_T" = T,
 	"exp_quad_XSX" = quad_XSX, 
 	"exp_quad_YSX" = quad_YSX,
 	"exp_quad_XS_K1_SX" = quad_XS_K1_SX, 
@@ -236,15 +287,21 @@ expected_terms <- function(mean_params_old, cov_params_old, theta_old, pat, tabl
 	
 }	
 
-info_exp <- function(mean_params_old, cov_params_old, theta_old, em_mean_params, pat, table1, table2) {
+info_exp <- function(mean_params_old, cov_params_old, theta_old, em_mean_params, cov_params, pat, table1, table2) {
 		
 	pat_table = table2[table2$id == pat,]
 	cens = table1$cens[table1$id == pat]
+	
+	K1 = K_1(1, pat_table)
+	K2 = K_2(1, pat_table)
+	
+	Sigma = Sigma_calc(cov_params,pat_table)
+	Inv_Sigma = solve(Sigma)	
 
 	dW_dsigma <- function(j,l) {
 		h <- function(T) {
 			X_T = Cov(T, pat_table)
-			W_T = pat_table$obs - X_T%*%mean_params
+			W_T = pat_table$obs - X_T%*%em_mean_params
 			Y = pat_table$obs
 
 			K_j = eval(parse(text=paste("K",j,sep="")))
@@ -270,13 +327,6 @@ info_exp <- function(mean_params_old, cov_params_old, theta_old, em_mean_params,
 		W_T = pat_table$obs - X_T%*%em_mean_params
 		return(t(W_T)%*%Inv_Sigma%*%K2%*%Inv_Sigma%*%W_T)
 	}	
-
-
-	Sigma = Sigma_calc(cov_params,pat_table)
-	Inv_Sigma = solve(Sigma)
-	K1 = K_1(cov_params[1], pat_table)
-	K2 = K_2(cov_params[2], pat_table)
-	
 
 	dW_dsigma11 = dW_dsigma(1,1)
 	dW_dsigma22 = dW_dsigma(2,2)
@@ -342,7 +392,7 @@ info_exp <- function(mean_params_old, cov_params_old, theta_old, em_mean_params,
 ### EM Algorithm ###
 
 # Initial Estimates
-theta_old = sum(table1$cens==0)/sum( table1$survival)
+theta_old = (sum(table1$cens))/sum(table1$survival)
 mean_params_old = model2$beta
 cov_params_old = model2$sigma
 
@@ -357,18 +407,15 @@ YSX_sum = 0
 XSX_sum = 0
 num_pats = length(levels(as.factor(table1$id)))
 Denominator = 0
-Score1 = 0
-Score2 = 0
 total_quad_X_K1 = 0
 total_quad_X_K2 = 0
 total_quad_Y_K1 = 0
 total_quad_Y_K2 = 0
 
 for (pat in table1$id) {
-	Denominator = Denominator + table1$survival[table1$id == pat] + (table1$cens[table1$id == pat] == 1)/theta_old
 	
-	exp_pat = expected_terms(mean_params_old, cov_params_old, theta_old, pat, table1, table2)
-	
+	exp_pat = expected_terms(mean_params_old, cov_params_old, theta_old, cov_params_old, pat, table1, table2)
+	Denominator = Denominator + exp_pat$exp_T	
 	YSX_sum = YSX_sum + exp_pat$exp_quad_YSX
 	XSX_sum = XSX_sum + exp_pat$exp_quad_XSX	
 	total_quad_X_K1 = total_quad_X_K1 + exp_pat$exp_quad_XS_K1_SX
@@ -377,49 +424,65 @@ for (pat in table1$id) {
 	total_quad_Y_K2 = total_quad_Y_K2 + exp_pat$exp_quad_YS_K2_SX	
 }
 
-dbeta_dsigma1 = solve(XSX_sum,total_quad_K1)%*%solve(XSX_sum,t(YSX_sum)) - solve(XSX_sum,t(total_quad_Y_K1))
+dbeta_dsigma1 = solve(XSX_sum,total_quad_X_K1)%*%solve(XSX_sum,t(YSX_sum)) - solve(XSX_sum,t(total_quad_Y_K1))
 
-dbeta_dsigma2 = solve(XSX_sum,total_quad_K2)%*%solve(XSX_sum,t(YSX_sum)) - solve(XSX_sum,t(total_quad_Y_K2))
+dbeta_dsigma2 = solve(XSX_sum,total_quad_X_K2)%*%solve(XSX_sum,t(YSX_sum)) - solve(XSX_sum,t(total_quad_Y_K2))
 
-em_mean_params = solve(XSX_sum,t(YSX_sum))
+inter_mean_params = solve(XSX_sum,t(YSX_sum))
 em_theta = num_pats / Denominator
 
 info = add_info = matrix(0,nrow = 2, ncol = 2)
+Score1 = 0
+Score2 = 0
 
 for (pat in table1$id) {
 	
-	exp_pat = info_exp(mean_params_old, cov_params_old, theta_old, em_mean_params, pat, table1, table2)
+	exp_pat = info_exp(mean_params_old, cov_params_old, theta_old, inter_mean_params, cov_params_old, pat, table1, table2)
 
 	Score1 = Score1 + -exp_pat$trace_K1/2+exp_pat$exp_K1/2
 	Score2 = Score2 + -exp_pat$trace_K2/2+exp_pat$exp_K2/2
 
-	add_info[1,1] = exp_pat$trace_K1_K1/2+exp_pat$dW_dsigma_1_1/2
-	add_info[1,2] = add_info[2,1] = exp_pat$trace_K1_K2/2+exp_pat$dW_dsigma_1_2/2
-	add_info[2,2] = exp_pat$trace_K2_K2/2+exp_pat$dW_dsigma_2_2/2
+	add_info[1,1] = exp_pat$trace_K1_K1/2-exp_pat$dW_dsigma_1_1/2
+	add_info[1,2] = add_info[2,1] = exp_pat$trace_K1_K2/2-exp_pat$dW_dsigma_1_2/2
+	add_info[2,2] = exp_pat$trace_K2_K2/2-exp_pat$dW_dsigma_2_2/2
 	info = info + add_info
 }
 
-Score_old = Score
 Score = c(Score1,Score2)
 
-print(cbind(Score_old,Score))
+print(Score)
+
+print(solve(info))
 
 print(solve(info)%*%Score)
 
 em_cov_params = cov_params_old + solve(info)%*%Score
-
 em_cov_params = as.numeric(lapply(em_cov_params, function(x){max(x,0)}))
+
+YSX_sum_2 = 0
+XSX_sum_2 = 0
+for (pat in table1$id) {
+	
+	exp_pat = expected_terms(mean_params_old, cov_params_old, theta_old, em_cov_params, pat, table1, table2)
+	YSX_sum_2 = YSX_sum_2 + exp_pat$exp_quad_YSX
+	XSX_sum_2 = XSX_sum_2 + exp_pat$exp_quad_XSX	
+}
+
+em_mean_params = solve(XSX_sum_2,t(YSX_sum_2))
 
 print(cbind(mean_params_old,em_mean_params))
 print(cbind(cov_params_old,em_cov_params))
 print(cbind(theta_old,em_theta))
 
 err = max(c(abs(em_mean_params-mean_params_old),
-abs(em_cov_params-cov_params_old),
+ abs(em_cov_params-cov_params_old),
 abs(em_theta-theta_old)))
 
 print(paste("error is:", round(err,3)))
-if(err < tol) {break}
+# if(err < tol) {break}
+
+log_lik(mean_params_old,cov_params_old,theta_old,table1,table2)
+log_lik(em_mean_params,cov_params_old,em_theta,table1,table2)
 
 mean_params_old = em_mean_params
 cov_params_old = em_cov_params

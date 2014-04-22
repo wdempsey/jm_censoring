@@ -1,4 +1,4 @@
-revival_model <- function(Table_1, Table_2, X_1, X_2, Sigma_calc, mean_params, cov_params, theta, fixed = FALSE) {
+em_model <- function(Table_1, Table_2, X_1, X_2, Sigma_calc, mean_params, cov_params, theta, fixed = FALSE, max_iter = 1000) {
 	
 	# Fits a Components of Variance Model
 
@@ -302,16 +302,10 @@ info_exp <- function(mean_params_old, cov_params_old, theta_old, em_mean_params,
 		h <- function(T) {
 			X_T = Cov(T, pat_table)
 			W_T = pat_table$obs - X_T%*%em_mean_params
-			Y = pat_table$obs
 
 			K_j = eval(parse(text=paste("K",j,sep="")))
 			K_l = eval(parse(text=paste("K",l,sep="")))			
-			dbeta_dsigma_l = eval(parse(text=paste("dbeta_dsigma",l,sep="")))
-		
-			term1 = (t(X_T%*%dbeta_dsigma_l)%*%Inv_Sigma%*%K_j + t(W_T)%*%Inv_Sigma%*%K_l%*%Inv_Sigma%*%K_j)%*%Inv_Sigma%*%W_T
-	
-			term2 = t(W_T)%*%Inv_Sigma%*%K_j%*%(Inv_Sigma%*%K_l%*%Inv_Sigma%*%W_T+Inv_Sigma%*%X_T%*%dbeta_dsigma_l)
-			return(term1+term2)
+			return( t(W_T)%*%Inv_Sigma%*%K_l%*%K_j%*%Inv_Sigma%*%W_T )
 		}	
 		return(h)
 	}
@@ -338,7 +332,7 @@ info_exp <- function(mean_params_old, cov_params_old, theta_old, em_mean_params,
 
 	cond_dens = Vectorize(h(mean_params_old, cov_params_old, theta_old, pat_table))
 
-	eval_T = seq(c, c+10, by = 0.1)	
+	eval_T = seq(c, c+20, by = 0.1)	
 	
 	probs = cond_dens(eval_T)
 
@@ -390,107 +384,91 @@ info_exp <- function(mean_params_old, cov_params_old, theta_old, em_mean_params,
 }
 
 ### EM Algorithm ###
-
-# Initial Estimates
-theta_old = (sum(table1$cens))/sum(table1$survival)
-mean_params_old = model2$beta
-cov_params_old = model2$sigma
-
-
-# EM Algo #
-tol = 0.08
-ptm <- proc.time()
-
-for (iter in 1:1000) {
-
-YSX_sum = 0
-XSX_sum = 0
-num_pats = length(levels(as.factor(table1$id)))
-Denominator = 0
-total_quad_X_K1 = 0
-total_quad_X_K2 = 0
-total_quad_Y_K1 = 0
-total_quad_Y_K2 = 0
-
-for (pat in table1$id) {
+em_mle <- function(mean_params,cov_params,theta, table1, table2, max_iter = 1000, fixed_theta = FALSE) {
 	
-	exp_pat = expected_terms(mean_params_old, cov_params_old, theta_old, cov_params_old, pat, table1, table2)
-	Denominator = Denominator + exp_pat$exp_T	
-	YSX_sum = YSX_sum + exp_pat$exp_quad_YSX
-	XSX_sum = XSX_sum + exp_pat$exp_quad_XSX	
-	total_quad_X_K1 = total_quad_X_K1 + exp_pat$exp_quad_XS_K1_SX
-	total_quad_X_K2 = total_quad_X_K2 + exp_pat$exp_quad_XS_K2_SX
-	total_quad_Y_K1 = total_quad_Y_K1 + exp_pat$exp_quad_YS_K1_SX
-	total_quad_Y_K2 = total_quad_Y_K2 + exp_pat$exp_quad_YS_K2_SX	
-}
-
-dbeta_dsigma1 = solve(XSX_sum,total_quad_X_K1)%*%solve(XSX_sum,t(YSX_sum)) - solve(XSX_sum,t(total_quad_Y_K1))
-
-dbeta_dsigma2 = solve(XSX_sum,total_quad_X_K2)%*%solve(XSX_sum,t(YSX_sum)) - solve(XSX_sum,t(total_quad_Y_K2))
-
-inter_mean_params = solve(XSX_sum,t(YSX_sum))
-em_theta = num_pats / Denominator
-
-info = add_info = matrix(0,nrow = 2, ncol = 2)
-Score1 = 0
-Score2 = 0
-
-for (pat in table1$id) {
+	### Initialize
+	for(iter in 1:max_iter) { 
 	
-	exp_pat = info_exp(mean_params_old, cov_params_old, theta_old, inter_mean_params, cov_params_old, pat, table1, table2)
-
-	Score1 = Score1 + -exp_pat$trace_K1/2+exp_pat$exp_K1/2
-	Score2 = Score2 + -exp_pat$trace_K2/2+exp_pat$exp_K2/2
-
-	add_info[1,1] = exp_pat$trace_K1_K1/2-exp_pat$dW_dsigma_1_1/2
-	add_info[1,2] = add_info[2,1] = exp_pat$trace_K1_K2/2-exp_pat$dW_dsigma_1_2/2
-	add_info[2,2] = exp_pat$trace_K2_K2/2-exp_pat$dW_dsigma_2_2/2
-	info = info + add_info
-}
-
-Score = c(Score1,Score2)
-
-print(Score)
-
-print(solve(info))
-
-print(solve(info)%*%Score)
-
-em_cov_params = cov_params_old + solve(info)%*%Score
-em_cov_params = as.numeric(lapply(em_cov_params, function(x){max(x,0)}))
-
-YSX_sum_2 = 0
-XSX_sum_2 = 0
-for (pat in table1$id) {
+		mean_params_old = mean_params
+		cov_params_old = cov_params
+		theta_old = theta
+		
+		info = matrix(0,nrow = 2, ncol = 2)
+		score = rep(0,2)
+		
+		
+		### First Calculate the New Covariance Parameters!
+		
+		for(pat in table1$id) {
+			
+			info_terms = info_exp(mean_params_old, cov_params_old, theta_old, mean_params, cov_params, pat, table1, table2)
+		
+			info[1,1] = info[1,1] + info_terms$trace_K1_K1/2 - info_terms$dW_dsigma_1_1
+			info[2,1] = info[1,2] = info[2,1] + info_terms$trace_K1_K2/2 - info_terms$dW_dsigma_1_2
+			info[2,2] = info[2,2] + info_terms$trace_K2_K2/2 - info_terms$dW_dsigma_2_2
+		
+			score[1] = score[1] + -info_terms$trace_K1/2 + info_terms	$exp_K1/2	
+			score[2] = score[2]-info_terms$trace_K2/2 + info_terms$exp_K2/2
+			
+			
+		}
+		
+		cov_params = cov_params_old-solve(info)%*%score
+		cov_params[cov_params<0] = 0
+		
+		# Now calculate the new mean parameters and survival parameters
+		# Note: Survival parameters are unaffected by the covariance calculation above
+		
+		quad_X = 0  # Quadaratic Term X^T S X
+		quad_Y = 0  # Quadaratic Term Y^T S X 
+		sum_exp_T = 0 # Sum of Expected Survival Terms
+		
+		for(pat in table1$id) {
+		
+			exp_terms = expected_terms(mean_params_old, cov_params_old, theta_old, cov_params, pat, table1, table2)
+					
+			quad_X = quad_X + exp_terms$exp_quad_XSX
+			quad_Y = quad_Y + exp_terms$exp_quad_YSX
+			
+			sum_exp_T = sum_exp_T + exp_terms$exp_T
+		}
+		
+		mean_params = solve(quad_X)%*%t(quad_Y)
+		
+		if(fixed_theta){
+			theta = theta_old
+		}
+		if(!fixed_theta){
+			theta = n*solve(sum_exp_T)
+		}
 	
-	exp_pat = expected_terms(mean_params_old, cov_params_old, theta_old, em_cov_params, pat, table1, table2)
-	YSX_sum_2 = YSX_sum_2 + exp_pat$exp_quad_YSX
-	XSX_sum_2 = XSX_sum_2 + exp_pat$exp_quad_XSX	
+		
+		delta = c(mean_params_old, cov_params_old, theta_old)-c(mean_params, cov_params, theta)
+		
+		if(max(delta) < 0.03) {break}
+	
+		
+		# results = rbind(results, c(mean_params, cov_params, theta))
+		
+	}
+	
+	if(iter == max_iter) {error = TRUE}
+	else {error = FALSE}
+	
+	return(list(mean_params=mean_params,
+		cov_params = cov_params,
+		theta = theta,
+		error = error,
+		max_error = max(delta)
+		))
+	
 }
 
-em_mean_params = solve(XSX_sum_2,t(YSX_sum_2))
 
-print(cbind(mean_params_old,em_mean_params))
-print(cbind(cov_params_old,em_cov_params))
-print(cbind(theta_old,em_theta))
+output = em_mle(mean_params,cov_params,theta, Table_1, Table_2, max_iter, fixed)
 
-err = max(c(abs(em_mean_params-mean_params_old),
- abs(em_cov_params-cov_params_old),
-abs(em_theta-theta_old)))
+return(list("estimates" = output))
 
-print(paste("error is:", round(err,3)))
-# if(err < tol) {break}
-
-log_lik(mean_params_old,cov_params_old,theta_old,table1,table2)
-log_lik(em_mean_params,cov_params_old,em_theta,table1,table2)
-
-mean_params_old = em_mean_params
-cov_params_old = em_cov_params
-theta_old = em_theta
 
 }
-proc.time()-ptm
 
-c(em_mean_params,em_cov_params,em_theta)
-c(model1$beta,model1$sigma, theta)
-c(model2$beta,model2$sigma, theta)

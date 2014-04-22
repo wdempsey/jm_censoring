@@ -54,6 +54,21 @@ X_2 <- function(t, pat_table) {
   return(model.matrix(form)[,2:6])
 }
 
+
+X_2_int <- function(t, pat_table) {
+  # Returns the revival vector
+  # and the log(s+delta)
+  # and treatment vectors
+  delta = 1/365
+  revival = t- pat_table$obs_times
+  log_rev = log(revival + delta)
+  treatment = pat_table$treatment
+  T = rep(t, length(revival))
+  form=~treatment+T+revival+log_rev+log_rev*treatment
+  return(model.matrix(form)[,2:6])
+}
+
+
 Sigma_calc <- function(cov_params, pat_table) {
   sigmasq_0 = cov_params[1]
   sigmasq_1 = cov_params[2]
@@ -90,6 +105,9 @@ cov_lambda <- 1.67
 Patient.ds <- exp(-abs(outer(Table_2_uncens$revival,Table_2_uncens$revival, "-"))/cov_lambda) *Patient # Patient Specific Exponential Covariance Matrix
 
 baseline_model <- regress(Table_2_uncens$obs~Table_2_uncens$treatment+Table_2_uncens$survival+Table_2_uncens$revival+Table_2_uncens$logrev, ~Patient + Patient.ds, kernel = 0)
+
+int_baseline_model <- regress(Table_2_uncens$obs~Table_2_uncens$treatment+Table_2_uncens$survival+Table_2_uncens$revival+Table_2_uncens$logrev+Table_2_uncens$logrev*Table_2_uncens$treatment, ~Patient + Patient.ds, kernel = 0)
+
   
 summary(baseline_model)
 
@@ -135,6 +153,23 @@ if(args[1] == 'cens') {
     write.table(conv, 'prot_conv_cens')
 
     sendmail(recipient, subject="Notification from R", message="Censored Only Model Calculation finished!")
+
+}
+
+if(args[1] == 'int') {
+	print('Computing Censored Only Model')
+
+	rev_mod <- revival_model(Table_1_cens, Table_2_cens, X_1, X_2_int, Sigma_calc, K, mean_params, cov_params, theta, fixed = TRUE)
+	
+	mle = rev_mod$mle
+	hess = rev_mod$hess
+    conv = rev_mod$conv
+    
+	write.table(mle, 'prot_mle_int')
+	write.table(hess, 'prot_hess_int')
+    write.table(conv, 'prot_conv_int')
+
+    sendmail(recipient, subject="Notification from R", message="Censored Only Model Interaction Calculation finished!")
 
 }
 

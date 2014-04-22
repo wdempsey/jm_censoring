@@ -16,25 +16,6 @@ em_model <- function(Table_1, Table_2, X_1, X_2, Sigma_calc, mean_params, cov_pa
 			# Column 3 = Observed Value (called 'obs')
 			# Column 4-n = Observed Covariates to Be Used in Fitting Model
 			
-X_1 <- function(pat_table) {
-  const = rep(1, dim(pat_table)[1])
-  return(const)
-}
-
-X_2 <- function(t, pat_table) {
-  # Returns the revival vector
-  revival = t- pat_table$obs_times
-  return(revival)
-}
-
-Sigma_calc <- function(cov_params, pat_table) {
-  sigmasq_0 = cov_params[1]
-  sigmasq_1 = cov_params[2]
-#   lambda = cov_params[3]
-  lambda <- 1
-  return( sigmasq_0 * diag(length(pat_table$obs_times)) + sigmasq_1 * exp(-abs(outer(pat_table$obs_times, pat_table$obs_times,"-"))/lambda))
-}
-
 Cov <- function(t, pat_table) {
   if (dim(pat_table)[1] == 1) {
     return(c(X_1(pat_table), X_2(t, pat_table)))
@@ -141,15 +122,17 @@ log_lik_vector <- function(params, table1 = Table_1, table2 = Table_2) {
 
 #### EM Algorithm  ####
 
-K_1 <- function(sigmasq_1, pat_table) {
-	return(sigmasq_1*diag(dim(pat_table)[1]))
-}
+# K_1 <- function(sigmasq_1, pat_table) {
+	# return(sigmasq_1*diag(dim(pat_table)[1]))
+# }
 
-K_2 <- function(sigmasq_2, pat_table) {
-	 return(sigmasq_2 * exp(-abs(outer(pat_table$obs_times, pat_table$obs_times,"-"))/1))
-}
+# K_2 <- function(sigmasq_2, pat_table) {
+	 # return(sigmasq_2 * exp(-abs(outer(pat_table$obs_times, pat_table$obs_times,"-"))/1))
+# }
 
-K = list(K_1,K_2)
+# K = list(K_1,K_2)
+
+num_varcomp = length(K)
 
 expected_terms <- function(mean_params_old, cov_params_old, theta_old, cov_params, pat, table1, table2) {
 		
@@ -180,52 +163,7 @@ expected_terms <- function(mean_params_old, cov_params_old, theta_old, cov_param
 		else{
 			return(t(Y)%*%Inv_Sigma%*%(X_T))
 		}
-	}	
-	
-	quad_XS_K1_SX_calc <- function(T) {
-		X_T = Cov(T, pat_table)
-		if(dim(pat_table)[1] == 1) {
-			return((X_T)%*%Inv_Sigma%*%K1%*%Inv_Sigma%*%(X_T))
-		}
-		else{
-			return(t(X_T)%*%Inv_Sigma%*%K1%*%Inv_Sigma%*%(X_T))
-		}
-	}	
-
-	quad_XS_K2_SX_calc <- function(T) {
-		X_T = Cov(T, pat_table)
-		if(dim(pat_table)[1] == 1) {
-			return((X_T)%*%Inv_Sigma%*%K2%*%Inv_Sigma%*%(X_T))
-		}
-		else{
-			return(t(X_T)%*%Inv_Sigma%*%K2%*%Inv_Sigma%*%(X_T))
-		}
-	}	
-
-	quad_YS_K1_SX_calc <- function(T) {
-		X_T = Cov(T, pat_table)
-		Y = pat_table$obs
-		if(dim(pat_table)[1] == 1) {
-			return((Y)%*%Inv_Sigma%*%K1%*%Inv_Sigma%*%(X_T))
-		}
-		else{
-			return(t(Y)%*%Inv_Sigma%*%K1%*%Inv_Sigma%*%(X_T))
-		}
-	}	
-	
-	quad_YS_K2_SX_calc <- function(T) {
-		X_T = Cov(T, pat_table)
-		Y = pat_table$obs
-		if(dim(pat_table)[1] == 1) {
-			return((Y)%*%Inv_Sigma%*%K2%*%Inv_Sigma%*%(X_T))
-		}
-		else{
-			return(t(Y)%*%Inv_Sigma%*%K2%*%Inv_Sigma%*%(X_T))
-		}
-	}	
-	
-
-	
+	}		
 	
 	if(cens == 1) {
 
@@ -239,12 +177,6 @@ expected_terms <- function(mean_params_old, cov_params_old, theta_old, cov_param
 	quad_XSX = Vectorize(quad_XSX_calc)(eval_T)
 	quad_YSX = Vectorize(quad_YSX_calc)(eval_T)	
 
-	quad_XS_K1_SX = Vectorize(quad_XS_K1_SX_calc)(eval_T)	
-	quad_XS_K2_SX = Vectorize(quad_XS_K2_SX_calc)(eval_T)	
-
-	quad_YS_K1_SX = Vectorize(quad_YS_K1_SX_calc)(eval_T)	
-	quad_YS_K2_SX = Vectorize(quad_YS_K2_SX_calc)(eval_T)	
-
 	probs = cond_dens(eval_T)
 
 	norm_probs = probs / sum(probs)
@@ -253,11 +185,7 @@ expected_terms <- function(mean_params_old, cov_params_old, theta_old, cov_param
 	
 	return(list("exp_T" = sum(eval_T*norm_probs),
 	"exp_quad_XSX" = matrix(quad_XSX%*%norm_probs, nrow = d, ncol = d), 
-	"exp_quad_YSX" = matrix(quad_YSX%*%norm_probs, nrow = 1, ncol = d), 
-	"exp_quad_XS_K1_SX" = matrix(quad_XS_K1_SX%*%norm_probs, nrow = d, ncol = d), 
-	"exp_quad_XS_K2_SX" = matrix(quad_XS_K2_SX%*%norm_probs, nrow = d, ncol = d), 
-	"exp_quad_YS_K1_SX" = matrix(quad_YS_K1_SX%*%norm_probs, nrow = 1, ncol = d), 
-	"exp_quad_YS_K2_SX" = matrix(quad_YS_K2_SX%*%norm_probs, nrow = 1, ncol = d)
+	"exp_quad_YSX" = matrix(quad_YSX%*%norm_probs, nrow = 1, ncol = d)
 	))
 
 	}
@@ -268,19 +196,9 @@ expected_terms <- function(mean_params_old, cov_params_old, theta_old, cov_param
 	quad_XSX = quad_XSX_calc(T)
 	quad_YSX = quad_YSX_calc(T)
 	
-	quad_XS_K1_SX = quad_XS_K1_SX_calc(T)
-	quad_XS_K2_SX = quad_XS_K2_SX_calc(T)
-
-	quad_YS_K1_SX = quad_YS_K1_SX_calc(T)
-	quad_YS_K2_SX = quad_YS_K2_SX_calc(T)
-	
 	return(list("exp_T" = T,
 	"exp_quad_XSX" = quad_XSX, 
-	"exp_quad_YSX" = quad_YSX,
-	"exp_quad_XS_K1_SX" = quad_XS_K1_SX, 
-	"exp_quad_XS_K2_SX" = quad_XS_K2_SX, 
-	"exp_quad_YS_K1_SX" = quad_YS_K1_SX, 
-	"exp_quad_YS_K2_SX" = quad_YS_K2_SX
+	"exp_quad_YSX" = quad_YSX
 	))
 		
 	}

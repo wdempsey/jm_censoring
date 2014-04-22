@@ -228,21 +228,22 @@ info_exp <- function(mean_params_old, cov_params_old, theta_old, em_mean_params,
 		return(h)
 	}
 
-	K1_calc <- function(T) {
-		X_T = Cov(T, pat_table)
-		W_T = pat_table$obs - X_T%*%em_mean_params
-		return(t(W_T)%*%Inv_Sigma%*%K1%*%Inv_Sigma%*%W_T)
-	}		
-
-	K2_calc <- function(T) {
-		X_T = Cov(T, pat_table)
-		W_T = pat_table$obs - X_T%*%em_mean_params
-		return(t(W_T)%*%Inv_Sigma%*%K2%*%Inv_Sigma%*%W_T)
-	}	
-
-	dW_dsigma11 = dW_dsigma(1,1)
-	dW_dsigma22 = dW_dsigma(2,2)
-	dW_dsigma12 = dW_dsigma(1,2)	
+	K_i_calc <- function(i) {
+		quad_K_i <- function(T) {
+			X_T = Cov(T, pat_table)
+			W_T = pat_table$obs - X_T%*%mean_params
+			K = do.call(paste("K_",i, sep = ""), list(pat_table))
+			return(t(W_T)%*%Inv_Sigma%*%K%*%Inv_Sigma%*%W_T)
+		}			
+	}
+	
+	dW_dsigma = matrix(nrow = num_varcomp, ncol = num_varcomp)
+	
+	for(i in 1:num_varcomp) {
+		for(j in 1:num_varcomp){
+			dW_sigma = 	dW_dsigma(i,j)	
+		}
+	}
 
 	if(cens == 1) {
 
@@ -255,46 +256,74 @@ info_exp <- function(mean_params_old, cov_params_old, theta_old, em_mean_params,
 	probs = cond_dens(eval_T)
 
 	norm_probs = probs / sum(probs)
-	
-	K1_vec = Vectorize(K1_calc)(eval_T)
-	K2_vec = Vectorize(K2_calc)(eval_T)
+		
+	exp_K = vector(length = num_varcomp)
+	trace_K = vector(length = num_varcomp)
+	dW_dsigma_ij = matrix(nrow = num_varcomp, ncol = num_varcomp)
+	trace_K_ij = matrix(nrow = num_varcomp, ncol = num_varcomp)
 
-	
+	for(i in 1:num_varcomp) {
+		quad_K_i = K_i_calc(i)	
+		K_i_vec = Vectorize(quad_K_i)(eval_T)
+		K_i = do.call(paste("K_",i, sep = ""), list(pat_table))
+
+		exp_K[i] = sum(norm_probs*K_i_vec)
+		trace_K[i] = sum(diag(Inv_Sigma%*%K))
+
+		for(j in 1:num_varcomp) {
+			quad_K_j = K_i_calc(j)	
+			K_j_vec = Vectorize(quad_K_j)(eval_T)
+			K_j = do.call(paste("K_",j, sep = ""), list(pat_table))
+			
+			dW_dsigma_ij[i,j] = sum(Vectorize(dW_dsigma[i,j])(eval_T)*norm_probs)
+			trace_K_ij[i,j] = sum(diag(Inv_Sigma%*%K_i%*%Inv_Sigma%*%K_j))
+		}
+	}
+
 	return(list(
-	"trace_K1_K1" = sum(diag(Inv_Sigma%*%K1%*%Inv_Sigma%*%K1)),
-	"trace_K2_K2" = sum(diag(Inv_Sigma%*%K2%*%Inv_Sigma%*%K2)),	
-	"trace_K1_K2" = sum(diag(Inv_Sigma%*%K1%*%Inv_Sigma%*%K2)),
-	"dW_dsigma_1_1" = sum(Vectorize(dW_dsigma11)(eval_T)*norm_probs),
-	"dW_dsigma_2_2" = sum(Vectorize(dW_dsigma22)(eval_T)*norm_probs),
-	"dW_dsigma_1_2" = sum(Vectorize(dW_dsigma12)(eval_T)*norm_probs),
-	"exp_K1" = sum(K1_vec*norm_probs),
-	"exp_K2" = sum(K2_vec*norm_probs),
-	"trace_K1" = sum(diag(Inv_Sigma%*%K1)),
-	"trace_K2" = sum(diag(Inv_Sigma%*%K2))
+	"trace_K" = trace_K,
+	"dW_dsigma" = dW_disgma_ij,
+	"exp_K" = exp_K,
+	"trace_K_ij" = trace_K_ij
 	))
 
 	}
 	
 	if (cens == 0) {
+	
 	T = table1$survival[table1$id == pat]
 	
-	K1_vec = K1_calc(T)
-	K2_vec = K2_calc(T)
+	exp_K = vector(length = num_varcomp)
+	trace_K = vector(length = num_varcomp)
+	dW_dsigma_ij = matrix(nrow = num_varcomp, ncol = num_varcomp)
+	trace_K_ij = matrix(nrow = num_varcomp, ncol = num_varcomp)
 
-	
+	for(i in 1:num_varcomp) {
+		quad_K_i = K_i_calc(i)	
+		K_i_vec = Vectorize(quad_K_i)(T)
+		K_i = do.call(paste("K_",i, sep = ""), list(pat_table))
+
+		exp_K[i] = K_i_vec
+		trace_K[i] = sum(diag(Inv_Sigma%*%K))
+
+		for(j in 1:num_varcomp) {
+			quad_K_j = K_i_calc(j)	
+			K_j_vec = Vectorize(quad_K_j)(T)
+			K_j = do.call(paste("K_",j, sep = ""), list(pat_table))
+			
+			dW_dsigma_ij[i,j] = dW_dsigma[i,j])(T)
+			trace_K_ij[i,j] = sum(diag(Inv_Sigma%*%K_i%*%Inv_Sigma%*%K_j))
+		}
+	}
+
 	return(list(
-	"trace_K1_K1" = sum(diag(Inv_Sigma%*%K1%*%Inv_Sigma%*%K1)),
-	"trace_K2_K2" = sum(diag(Inv_Sigma%*%K2%*%Inv_Sigma%*%K2)),	
-	"trace_K1_K2" = sum(diag(Inv_Sigma%*%K1%*%Inv_Sigma%*%K2)),
-	"dW_dsigma_1_1" = dW_dsigma11(T),
-	"dW_dsigma_2_2" = dW_dsigma22(T),
-	"dW_dsigma_1_2" = dW_dsigma12(T),
-	"exp_K1" = sum(K1_vec),
-	"exp_K2" = sum(K2_vec),
-	"trace_K1" = sum(diag(Inv_Sigma%*%K1)),
-	"trace_K2" = sum(diag(Inv_Sigma%*%K2))
+	"trace_K" = trace_K,
+	"dW_dsigma" = dW_disgma_ij,
+	"exp_K" = exp_K,
+	"trace_K_ij" = trace_K_ij
 	))
-		
+
+
 	}
 	
 	
@@ -310,9 +339,9 @@ em_mle <- function(mean_params,cov_params,theta, table1, table2, max_iter = 1000
 		mean_params_old = mean_params
 		cov_params_old = cov_params
 		theta_old = theta
-		
-		info = matrix(0,nrow = 2, ncol = 2)
-		score = rep(0,2)
+
+		info = matrix(0,nrow = num_varcomp, ncol = num_varcomp)
+		score = rep(0,num_varcomp)
 		
 		
 		### First Calculate the New Covariance Parameters!
@@ -321,14 +350,12 @@ em_mle <- function(mean_params,cov_params,theta, table1, table2, max_iter = 1000
 			
 			info_terms = info_exp(mean_params_old, cov_params_old, theta_old, mean_params, cov_params, pat, table1, table2)
 		
-			info[1,1] = info[1,1] + info_terms$trace_K1_K1/2 - info_terms$dW_dsigma_1_1
-			info[2,1] = info[1,2] = info[2,1] + info_terms$trace_K1_K2/2 - info_terms$dW_dsigma_1_2
-			info[2,2] = info[2,2] + info_terms$trace_K2_K2/2 - info_terms$dW_dsigma_2_2
-		
-			score[1] = score[1] + -info_terms$trace_K1/2 + info_terms	$exp_K1/2	
-			score[2] = score[2]-info_terms$trace_K2/2 + info_terms$exp_K2/2
-			
-			
+			for (i in 1:num_varcomp){
+				score[i] = score[i] + -info_terms$trace_K[i]/2 + info_terms$exp_K[i]/2	
+				for(j in 1:num_varcomp){
+					info[i,j] = info[i,j] + info_terms$trace_K_ij[i,j]/2 - info_terms$dW_dsigma[i,j]				
+				}
+			}
 		}
 		
 		cov_params = cov_params_old-solve(info)%*%score

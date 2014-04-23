@@ -65,7 +65,7 @@ X_2_int <- function(t, pat_table) {
   treatment = pat_table$treatment
   T = rep(t, length(revival))
   form=~treatment+T+revival+log_rev+log_rev*treatment
-  return(model.matrix(form)[,2:6])
+  return(model.matrix(form)[,2:8])
 }
 
 
@@ -157,9 +157,13 @@ if(args[1] == 'cens') {
 }
 
 if(args[1] == 'int') {
-	print('Computing Censored Only Model')
+	print('Computing Interaction Censored Only Model')
+	
+	mean_params_int <- int_baseline_model$beta
+	cov_params_int <- c(baseline_model$sigma)
 
-	rev_mod <- revival_model(Table_1_cens, Table_2_cens, X_1, X_2_int, Sigma_calc, K, mean_params, cov_params, theta, fixed = TRUE)
+
+	rev_mod <- revival_model(Table_1_cens, Table_2_cens, X_1, X_2_int, Sigma_calc, K, mean_params_int, cov_params_int, theta, fixed = TRUE)
 	
 	mle = rev_mod$mle
 	hess = rev_mod$hess

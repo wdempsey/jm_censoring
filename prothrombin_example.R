@@ -159,10 +159,13 @@ if(args[1] == 'cens') {
 if(args[1] == 'int') {
 	print('Computing Interaction Censored Only Model')
 	
-	mean_params_int <- int_baseline_model$beta
-	cov_params_int <- c(baseline_model$sigma)
-
-
+    
+#   mean_params_int <- int_baseline_model$beta
+#   cov_params_int <- int_baseline_model$sigma
+    
+    mean_params_int <- c(78.692834, -7.741526, -6.129254, 2.863103, -2.631562, -2.881392, 5.355214, 8.213965)
+    cov_params_int <- c(204.649834, 190.928444, 199.813551)
+    
 	rev_mod <- revival_model(Table_1_cens, Table_2_cens, X_1, X_2_int, Sigma_calc, K, mean_params_int, cov_params_int, theta, fixed = TRUE)
 	
 	mle = rev_mod$mle

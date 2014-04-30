@@ -1,4 +1,4 @@
-em_model <- function(Table_1, Table_2, X_1, X_2, Sigma_calc, mean_params, cov_params, theta, fixed = FALSE, max_iter = 1000) {
+em_model <- function(Table_1, Table_2, X_1, X_2, Sigma_calc, K, mean_params, cov_params, theta, fixed = FALSE, max_iter = 1000) {
 	
 	# Fits a Components of Variance Model
 

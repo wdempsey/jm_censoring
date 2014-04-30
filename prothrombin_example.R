@@ -136,6 +136,7 @@ K_3 <- function(pat_table) {
 K = list(K_1, K_2, K_3)
 
 source('MLE_censoring.R')
+source('EM_censoring.R')
 
 recipient = "dempsey.walter@gmail.com"
 
@@ -153,6 +154,19 @@ if(args[1] == 'cens') {
     write.table(conv, 'prot_conv_cens')
 
     sendmail(recipient, subject="Notification from R", message="Censored Only Model Calculation finished!")
+
+}
+
+if(args[1] == 'em') {
+	print('Computing Censored Only Model')
+
+	rev_mod <- em_model(Table_1_cens, Table_2_cens, X_1, X_2, Sigma_calc, K, mean_params, cov_params, theta, fixed = TRUE, max_iter = 100)
+	
+	estimates = rev_mod$estimates
+
+	write.table(estimates, 'em_prot_mle_cens')
+
+    sendmail(recipient, subject="Notification from R", message="Censored Only EM Model Calculation finished!")
 
 }
 

@@ -325,6 +325,8 @@ info_exp <- function(mean_params_old, cov_params_old, theta_old, em_mean_params,
 ### EM Algorithm ###
 em_mle <- function(mean_params,cov_params,theta, table1, table2, max_iter = 1000, fixed_theta = FALSE) {
 	
+	n = length(table1$id)
+	
 	### Initialize
 	for(iter in 1:max_iter) { 
 	
@@ -382,7 +384,7 @@ em_mle <- function(mean_params,cov_params,theta, table1, table2, max_iter = 1000
 		
 		delta = c(mean_params_old, cov_params_old, theta_old)-c(mean_params, cov_params, theta)
 		
-		if(max(delta) < 0.03) {break}
+		if(max(abs(delta)) < 0.01) {break}
 	
 		
 		# results = rbind(results, c(mean_params, cov_params, theta))

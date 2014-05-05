@@ -112,6 +112,31 @@ log_lik <- function(mean_params, cov_params, theta, table1 = Table_1, table2 = T
 	return(llik)
 }
 
+log_lik_fast <- function(mean_params, cov_params, theta, table1 = Table_1, table2 = Table_2) {
+	log_lik_pat <- function(pat) {
+			pat_table = table2[table2$id == pat,]
+		
+		if (table1$cens[table1$id == pat] == 1) {
+			c = table1$survival[table1$id == pat]
+			llik = log_lik_cens(mean_params, cov_params, theta, pat_table,c)
+		}
+		if (table1$cens[table1$id == pat] == 0) {
+			T = table1$survival[table1$id == pat]
+			llik = log_lik_uncens(mean_params, cov_params, theta, pat_table,T)
+		}	
+	return(llik)
+	}
+	return(log_lik_pat)
+}
+
+
+func1 = log_lik_fast(mean_params, cov_params, theta, table1 = Table_1, table2 = Table_2)
+
+system.time(Vectorize(func1)(id))
+system.time(lapply(id,func1))
+system.time(log_lik(mean_params, cov_params, theta, table1 = Table_1, table2 = Table_2))
+
+
 log_lik_vector <- function(params, table1 = Table_1, table2 = Table_2) {
 	mean_params = params[1:length(mean_params)]
 	cov_params = params[(length(mean_params)+1):(length(params)-1)]
@@ -141,35 +166,53 @@ expected_terms <- function(mean_params_old, cov_params_old, theta_old, cov_param
 	
 	Sigma = Sigma_calc(cov_params,pat_table)
 	Inv_Sigma = solve(Sigma)
-#	K1 = K_1(1, pat_table)
-#	K2 = K_2(1, pat_table)
+
+	cond_dens = Vectorize(h(mean_params_old, cov_params_old, theta_old, pat_table))
 	
-	quad_XSX_calc <- function(T) {
+	quad_XSX_calc <- function(T, cens) {
 		X_T = Cov(T, pat_table)
-		if(dim(pat_table)[1] == 1) {
-			return((X_T)%*%Inv_Sigma%*%(X_T))
+		if (cens == 0) {
+			if(dim(pat_table)[1] == 1) {
+				return((X_T)%*%Inv_Sigma%*%(X_T))
+			}
+			else{
+				return(t(X_T)%*%Inv_Sigma%*%(X_T))
+			}
 		}
-		else{
-			return(t(X_T)%*%Inv_Sigma%*%(X_T))
-		}
+		if (cens == 1) {
+			if(dim(pat_table)[1] == 1) {
+				return((X_T)%*%Inv_Sigma%*%(X_T)*cond_dens(T))
+			}
+			else{
+				return(t(X_T)%*%Inv_Sigma%*%(X_T)*cond_dens(T))
+			}
+		}	
 	}	
 
-	quad_YSX_calc <- function(T) {
+	quad_YSX_calc <- function(T,cens) {
 		X_T = Cov(T, pat_table)
 		Y = pat_table$obs
-		if(dim(pat_table)[1] == 1) {
-			return((Y)%*%Inv_Sigma%*%(X_T))
+		if (cens == 0) {		
+			if(dim(pat_table)[1] == 1) {
+				return((Y)%*%Inv_Sigma%*%(X_T))
+			}
+			else{
+				return(t(Y)%*%Inv_Sigma%*%(X_T))
+			}
 		}
-		else{
-			return(t(Y)%*%Inv_Sigma%*%(X_T))
-		}
+		if (cens == 1) {		
+			if(dim(pat_table)[1] == 1) {
+				return((Y)%*%Inv_Sigma%*%(X_T)*cond_dens(T))
+			}
+			else{
+				return(t(Y)%*%Inv_Sigma%*%(X_T)*cond_dens(T))
+			}
+		}	
 	}		
 	
 	if(cens == 1) {
 
 	c = table1$survival[table1$id == pat]
-
-	cond_dens = Vectorize(h(mean_params_old, cov_params_old, theta_old, pat_table))
 
 	eval_T = seq(c, c+10, by = 0.1)
 

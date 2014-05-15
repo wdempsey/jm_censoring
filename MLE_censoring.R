@@ -25,28 +25,28 @@ Cov <- function(t, pat_table) {
   }
 }
 
-g <- function( mean_params, cov_params, pat_table) {
+log_g <- function( mean_params, cov_params, pat_table) {
 	# Provides a function of the survival time, t,
 	# for the likelihood Y | T
 	
-	g2 <- function(t) {
+	log_g2 <- function(t) {
 		k = dim(pat_table)[1]
 		X = Cov(t, pat_table)
 		Sigma = Sigma_calc(cov_params, pat_table)
 		mu = X%*%mean_params
 		y = pat_table$obs
-		return( (2*pi)^(-k/2)*det(Sigma)^(-1/2)*exp(-t(y - mu)%*% solve(Sigma) %*% (y - mu)/2) )
+		return( -k/2*log(2*pi) - as.numeric(determinant(Sigma)$modulus)/2 - t(y - mu)%*% solve(Sigma, (y - mu))/2 )
 	}
 	
-	return(g2)	
+	return(log_g2)	
 }
 
-f <- function(theta) { 
+log_f <- function(theta) { 
 	# Assume an Exponential Model with rate parameter theta
 	
-	f2 <- function(t) {return(theta * exp(-theta * t))}
+	log_f2 <- function(t) {return(log(theta) - theta * t)}
 	
-	return(f2)
+	return(log_f2)
 	
 }
 
@@ -55,9 +55,9 @@ h <- function(mean_params, cov_params, theta, pat_table) {
 	# at T = t given the parameter values
 	
 	h2 <- function(t) {
-		t_dens = f(theta)
-		y_dens = g(mean_params, cov_params, pat_table) 
-		return( t_dens(t) * y_dens(t) )
+		t_dens = log_f(theta)
+		y_dens = log_g(mean_params, cov_params, pat_table) 
+		return( exp(t_dens(t) + y_dens(t)) )
 	}
 	
 	return(h2)
@@ -76,7 +76,7 @@ logint <- function(mean_params, cov_params, theta, pat_table,c) {
 ### Need -log(1-F(c))
 
 cdf_T <- function(theta, x) {
-	dens = f(theta)
+	dens = function(y) {exp(log_f(theta)(y))}
 	return(integrate(Vectorize(dens), 0,x)$value)
 }
 
@@ -91,7 +91,7 @@ log_lik_cens <- function(mean_params, cov_params, theta, pat_table,c) {
 
 log_lik_uncens <- function(mean_params, cov_params, theta, pat_table,T) {
 	# Log-Likelihood For Uncensored Patients
-	return(log( f(theta)(T) ) + log ( g(mean_params, cov_params, pat_table)(T)))
+	return(log_f(theta)(T) + log_g(mean_params, cov_params, pat_table)(T) )
 }
 
 ### Complete Log-Likelihood
@@ -128,17 +128,6 @@ log_lik_vector_fixed <- function(theta) {
 }
 
 
-
-# ### Calculate Gradient of the Log-Likelihood ###
-# K_1 <- function(pat_table) {
-	# return(diag(dim(pat_table)[1]))
-# }
-
-# K_2 <- function(pat_table) {
-	 # return(exp(-abs(outer(pat_table$obs_times, pat_table$obs_times,"-"))/1))
-# }
-
-# K = list(K_1, K_2)
 num_varcomp = length(K)
 
 expected_terms <- function(mean_params, cov_params, theta, pat, table1, table2) {	

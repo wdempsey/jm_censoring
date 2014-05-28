@@ -114,7 +114,7 @@ log_lik <- function(mean_params, cov_params, theta, table1 = Table_1, table2 = T
 
 log_lik_fast <- function(mean_params, cov_params, theta, table1 = Table_1, table2 = Table_2) {
 	log_lik_pat <- function(pat) {
-			pat_table = table2[table2$id == pat,]
+		pat_table = table2[table2$id == pat,]
 		
 		if (table1$cens[table1$id == pat] == 1) {
 			c = table1$survival[table1$id == pat]
@@ -147,16 +147,6 @@ log_lik_vector <- function(params, table1 = Table_1, table2 = Table_2) {
 
 #### EM Algorithm  ####
 
-# K_1 <- function(sigmasq_1, pat_table) {
-	# return(sigmasq_1*diag(dim(pat_table)[1]))
-# }
-
-# K_2 <- function(sigmasq_2, pat_table) {
-	 # return(sigmasq_2 * exp(-abs(outer(pat_table$obs_times, pat_table$obs_times,"-"))/1))
-# }
-
-# K = list(K_1,K_2)
-
 num_varcomp = length(K)
 
 expected_terms <- function(mean_params_old, cov_params_old, theta_old, cov_params, pat, table1, table2) {
@@ -166,56 +156,36 @@ expected_terms <- function(mean_params_old, cov_params_old, theta_old, cov_param
 	
 	Sigma = Sigma_calc(cov_params,pat_table)
 	Inv_Sigma = solve(Sigma)
-
-	cond_dens = Vectorize(h(mean_params_old, cov_params_old, theta_old, pat_table))
 	
-	quad_XSX_calc <- function(T, cens) {
+	quad_XSX_calc <- function(T) {
 		X_T = Cov(T, pat_table)
-		if (cens == 0) {
-			if(dim(pat_table)[1] == 1) {
-				return((X_T)%*%Inv_Sigma%*%(X_T))
-			}
-			else{
-				return(t(X_T)%*%Inv_Sigma%*%(X_T))
-			}
+		if(dim(pat_table)[1] == 1) {
+			return((X_T)%*%Inv_Sigma%*%(X_T))
 		}
-		if (cens == 1) {
-			if(dim(pat_table)[1] == 1) {
-				return((X_T)%*%Inv_Sigma%*%(X_T)*cond_dens(T))
-			}
-			else{
-				return(t(X_T)%*%Inv_Sigma%*%(X_T)*cond_dens(T))
-			}
-		}	
+		else{
+			return(t(X_T)%*%Inv_Sigma%*%(X_T))
+		}
 	}	
 
-	quad_YSX_calc <- function(T,cens) {
+	quad_YSX_calc <- function(T) {
 		X_T = Cov(T, pat_table)
 		Y = pat_table$obs
-		if (cens == 0) {		
-			if(dim(pat_table)[1] == 1) {
-				return((Y)%*%Inv_Sigma%*%(X_T))
-			}
-			else{
-				return(t(Y)%*%Inv_Sigma%*%(X_T))
-			}
+		if(dim(pat_table)[1] == 1) {
+			return((Y)%*%Inv_Sigma%*%(X_T))
 		}
-		if (cens == 1) {		
-			if(dim(pat_table)[1] == 1) {
-				return((Y)%*%Inv_Sigma%*%(X_T)*cond_dens(T))
-			}
-			else{
-				return(t(Y)%*%Inv_Sigma%*%(X_T)*cond_dens(T))
-			}
-		}	
+		else{
+			return(t(Y)%*%Inv_Sigma%*%(X_T))
+		}
 	}		
 	
 	if(cens == 1) {
 
 	c = table1$survival[table1$id == pat]
+	
+	cond_dens = Vectorize(h(mean_params_old, cov_params_old, theta_old, pat_table))
+
 
 	eval_T = seq(c, c+10, by = 0.1)
-
 
 	quad_XSX = Vectorize(quad_XSX_calc)(eval_T)
 	quad_YSX = Vectorize(quad_YSX_calc)(eval_T)	
@@ -248,122 +218,148 @@ expected_terms <- function(mean_params_old, cov_params_old, theta_old, cov_param
 	
 }	
 
-info_exp <- function(mean_params_old, cov_params_old, theta_old, em_mean_params, cov_params, pat, table1, table2) {
+info_exp <- function(mean_params_old, cov_params_old, theta_old, em_mean_params, cov_params, table1, table2) {
+	
+	info_exp_pat <- function(pat) {
 		
-	pat_table = table2[table2$id == pat,]
-	cens = table1$cens[table1$id == pat]
+		pat_table = table2[table2$id == pat,]
+		cens = table1$cens[table1$id == pat]
+		
+		Sigma = Sigma_calc(cov_params,pat_table)
+		Inv_Sigma = solve(Sigma)	
 	
-#	K1 = K_1(1, pat_table)
-#	K2 = K_2(1, pat_table)
+		dW_dsigma <- function(j,l) {
+			h <- function(T) {
+				X_T = Cov(T, pat_table)
+				W_T = pat_table$obs - X_T%*%em_mean_params
 	
-	Sigma = Sigma_calc(cov_params,pat_table)
-	Inv_Sigma = solve(Sigma)	
-
-	dW_dsigma <- function(j,l) {
-		h <- function(T) {
-			X_T = Cov(T, pat_table)
-			W_T = pat_table$obs - X_T%*%em_mean_params
-
-			K_j = do.call(paste("K_",j, sep = ""), list(pat_table))
-			K_l = do.call(paste("K_",l, sep = ""), list(pat_table))
-			return( t(W_T)%*%Inv_Sigma%*%K_l%*%K_j%*%Inv_Sigma%*%W_T )
-		}	
-		return(h)
-	}
-
-	K_i_calc <- function(i) {
-		quad_K_i <- function(T) {
-			X_T = Cov(T, pat_table)
-			W_T = pat_table$obs - X_T%*%mean_params
+				K_j = do.call(paste("K_",j, sep = ""), list(pat_table))
+				K_l = do.call(paste("K_",l, sep = ""), list(pat_table))
+				return( t(W_T)%*%Inv_Sigma%*%K_l%*%K_j%*%Inv_Sigma%*%W_T )
+			}	
+			return(h)
+		}
+	
+		K_i_calc <- function(i) {
+			quad_K_i <- function(T) {
+				X_T = Cov(T, pat_table)
+				W_T = pat_table$obs - X_T%*%mean_params
+				K_i = do.call(paste("K_",i, sep = ""), list(pat_table))
+				return(t(W_T)%*%Inv_Sigma%*%K_i%*%Inv_Sigma%*%W_T)
+			}			
+		}
+		
+		if(cens == 1) {
+	
+		c = table1$survival[table1$id == pat]
+	
+		cond_dens = Vectorize(h(mean_params_old, cov_params_old, theta_old, pat_table))
+	
+		eval_T = seq(c, c+20, by = 0.1)	
+		
+		probs = cond_dens(eval_T)
+	
+		norm_probs = probs / sum(probs)
+			
+		exp_K = vector(length = num_varcomp)
+		trace_K = vector(length = num_varcomp)
+		dW_dsigma_ij = matrix(nrow = num_varcomp, ncol = num_varcomp)
+		trace_K_ij = matrix(nrow = num_varcomp, ncol = num_varcomp)
+	
+		for(i in 1:num_varcomp) {
+			quad_K_i = K_i_calc(i)	
+			K_i_vec = Vectorize(quad_K_i)(eval_T)
 			K_i = do.call(paste("K_",i, sep = ""), list(pat_table))
-			return(t(W_T)%*%Inv_Sigma%*%K_i%*%Inv_Sigma%*%W_T)
-		}			
-	}
 	
-	if(cens == 1) {
-
-	c = table1$survival[table1$id == pat]
-
-	cond_dens = Vectorize(h(mean_params_old, cov_params_old, theta_old, pat_table))
-
-	eval_T = seq(c, c+20, by = 0.1)	
+			exp_K[i] = sum(norm_probs*K_i_vec)
+			trace_K[i] = sum(diag(Inv_Sigma%*%K_i))
 	
-	probs = cond_dens(eval_T)
-
-	norm_probs = probs / sum(probs)
+			for(j in 1:num_varcomp) {
+				quad_K_j = K_i_calc(j)	
+				K_j_vec = Vectorize(quad_K_j)(eval_T)
+				K_j = do.call(paste("K_",j, sep = ""), list(pat_table))
+				
+				dW_dsigma_ij[i,j] = sum(Vectorize(dW_dsigma(i,j))(eval_T)*norm_probs)
+				trace_K_ij[i,j] = sum(diag(Inv_Sigma%*%K_i%*%Inv_Sigma%*%K_j))
+			}
+		}
+	
+		return(list(
+		"trace_K" = trace_K,
+		"dW_dsigma" = dW_dsigma_ij,
+		"exp_K" = exp_K,
+		"trace_K_ij" = trace_K_ij
+		))
+	
+		}
 		
-	exp_K = vector(length = num_varcomp)
-	trace_K = vector(length = num_varcomp)
-	dW_dsigma_ij = matrix(nrow = num_varcomp, ncol = num_varcomp)
-	trace_K_ij = matrix(nrow = num_varcomp, ncol = num_varcomp)
-
-	for(i in 1:num_varcomp) {
-		quad_K_i = K_i_calc(i)	
-		K_i_vec = Vectorize(quad_K_i)(eval_T)
-		K_i = do.call(paste("K_",i, sep = ""), list(pat_table))
-
-		exp_K[i] = sum(norm_probs*K_i_vec)
-		trace_K[i] = sum(diag(Inv_Sigma%*%K_i))
-
-		for(j in 1:num_varcomp) {
-			quad_K_j = K_i_calc(j)	
-			K_j_vec = Vectorize(quad_K_j)(eval_T)
-			K_j = do.call(paste("K_",j, sep = ""), list(pat_table))
-			
-			dW_dsigma_ij[i,j] = sum(Vectorize(dW_dsigma(i,j))(eval_T)*norm_probs)
-			trace_K_ij[i,j] = sum(diag(Inv_Sigma%*%K_i%*%Inv_Sigma%*%K_j))
+		if (cens == 0) {
+		
+		T = table1$survival[table1$id == pat]
+		
+		exp_K = vector(length = num_varcomp)
+		trace_K = vector(length = num_varcomp)
+		dW_dsigma_ij = matrix(nrow = num_varcomp, ncol = num_varcomp)
+		trace_K_ij = matrix(nrow = num_varcomp, ncol = num_varcomp)
+	
+		for(i in 1:num_varcomp) {
+			quad_K_i = K_i_calc(i)	
+			K_i_vec = Vectorize(quad_K_i)(T)
+			K_i = do.call(paste("K_",i, sep = ""), list(pat_table))
+	
+			exp_K[i] = K_i_vec
+			trace_K[i] = sum(diag(Inv_Sigma%*%K_i))
+	
+			for(j in 1:num_varcomp) {
+				quad_K_j = K_i_calc(j)	
+				K_j_vec = Vectorize(quad_K_j)(T)
+				K_j = do.call(paste("K_",j, sep = ""), list(pat_table))
+				
+				dW_dsigma_ij[i,j] = dW_dsigma(i,j)(T)
+				trace_K_ij[i,j] = sum(diag(Inv_Sigma%*%K_i%*%Inv_Sigma%*%K_j))
+			}
+		}
+	
+		return(list(
+		"trace_K" = trace_K,
+		"dW_dsigma" = dW_dsigma_ij,
+		"exp_K" = exp_K,
+		"trace_K_ij" = trace_K_ij
+		))
+	
+	
 		}
 	}
-
-	return(list(
-	"trace_K" = trace_K,
-	"dW_dsigma" = dW_dsigma_ij,
-	"exp_K" = exp_K,
-	"trace_K_ij" = trace_K_ij
-	))
-
-	}
-	
-	if (cens == 0) {
-	
-	T = table1$survival[table1$id == pat]
-	
-	exp_K = vector(length = num_varcomp)
-	trace_K = vector(length = num_varcomp)
-	dW_dsigma_ij = matrix(nrow = num_varcomp, ncol = num_varcomp)
-	trace_K_ij = matrix(nrow = num_varcomp, ncol = num_varcomp)
-
-	for(i in 1:num_varcomp) {
-		quad_K_i = K_i_calc(i)	
-		K_i_vec = Vectorize(quad_K_i)(T)
-		K_i = do.call(paste("K_",i, sep = ""), list(pat_table))
-
-		exp_K[i] = K_i_vec
-		trace_K[i] = sum(diag(Inv_Sigma%*%K_i))
-
-		for(j in 1:num_varcomp) {
-			quad_K_j = K_i_calc(j)	
-			K_j_vec = Vectorize(quad_K_j)(T)
-			K_j = do.call(paste("K_",j, sep = ""), list(pat_table))
-			
-			dW_dsigma_ij[i,j] = dW_dsigma(i,j)(T)
-			trace_K_ij[i,j] = sum(diag(Inv_Sigma%*%K_i%*%Inv_Sigma%*%K_j))
-		}
-	}
-
-	return(list(
-	"trace_K" = trace_K,
-	"dW_dsigma" = dW_dsigma_ij,
-	"exp_K" = exp_K,
-	"trace_K_ij" = trace_K_ij
-	))
-
-
-	}
-	
-	
+	return(info_exp_pat)
 
 }
+
+mean_params_old = mean_params
+cov_params_old = cov_params
+theta_old = theta
+em_mean_params = mean_params
+
+trial = info_exp(mean_params_old, cov_params_old, theta_old, em_mean_params, cov_params, table1, table2)
+
+cens_id = table1$id
+
+system.time(lapply(cens_id,trial))
+
+option2 <- function(mean_params_old, cov_params_old, theta_old, mean_params, cov_params, table1, table2) {
+	res = rep(0,0)
+	
+	for(pat in table1$id) {
+			
+		info_terms = info_exp(mean_params_old, cov_params_old, theta_old, mean_params, cov_params, table1, table2)
+		
+		append(res,info_terms(pat))
+	
+	}
+	return(res)
+	
+}
+
+system.time(option2(mean_params_old, cov_params_old, theta_old, mean_params, cov_params, table1, table2))
 
 ### EM Algorithm ###
 em_mle <- function(mean_params,cov_params,theta, table1, table2, max_iter = 1000, fixed_theta = FALSE) {

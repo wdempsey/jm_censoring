@@ -264,9 +264,9 @@ grad_calc_vector <- function(params, table1 = Table_1, table2 = Table_2) {
 
 grad_calc_vector_fixed <- function(theta) {
 	grad_theta <- function(params) {
-		return(grad_calc_vector(c(params, theta)))
+		return(grad_calc_vector(c(params, theta))[1:4])
 	}
-	return(grad_calc)
+	return(grad_theta)
 }
 
 log_lik_vector_fixed <- function(theta) {
@@ -285,16 +285,21 @@ print('Got to The Optimization Component')
 
 #cdf_T(0.25, maxcens)
 
-max_theta = 5*theta
+max_theta = 10*theta
+min_theta = theta/10
+
+grad_check <- function(params) {
+	return(grad(log_lik_vector, params)	)
+}
 
 if(fixed == TRUE) {
   print('Fixed Theta For Optimization')
   inits <- c(mean_params, cov_params)
-  op_llik <- optim(inits, log_lik_vector_fixed(theta), lower = c(rep(-Inf,length(mean_params)), rep(0, length(cov_params)), 0), upper = c(rep(Inf, length(mean_params) + length(cov_params)), 5))  
+  op_llik <- optim(inits, log_lik_vector_fixed(theta), grad_calc_vector_fixed(theta), lower = c(rep(-Inf,length(mean_params)), rep(0, length(cov_params)), min_theta), upper = c(rep(Inf, length(mean_params) + length(cov_params)), max_theta), hessian = TRUE)  
 }
 if(fixed == FALSE) {
   inits <- c(mean_params, cov_params, theta)
-  op_llik <- optim(inits, log_lik_vector,grad_calc_vector, lower = c(rep(-Inf,length(mean_params)), rep(0, length(cov_params)), 0), upper = c(rep(Inf, length(mean_params) + length(cov_params)), max_theta))  
+  op_llik <- optim(inits, log_lik_vector, grad_calc_vector, lower = c(rep(-Inf,length(mean_params)), rep(0, length(cov_params)), min_theta), upper = c(rep(Inf, length(mean_params) + length(cov_params)), max_theta), hessian = TRUE)  
 }
 
 print(op_llik$convergence)
@@ -323,7 +328,7 @@ if(fixed == FALSE) {
 }
 
 
-return(list("mle" = mle_est, "hess" = Hess, "conv" = op_llik$convergence))
+return(list("mle" = mle_est, "hess" = Hess, "conv" = op_llik$convergence, "llik" = log_lik_vector_fixed(theta)(mle_est)))
 
 }
 

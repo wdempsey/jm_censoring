@@ -13,7 +13,7 @@ cens_sigma <- rep(0,0)
 rev_mle <- rep(0,0)
 
 # for(k in 1:11) {
-n_patients = 200
+n_patients = 50
 
 # Table 1 ~ Survival Data is Exponential with rate parameter lambda = 5
 	# Assume No Censoring
@@ -71,7 +71,7 @@ cov_lambda <- 1; Patient.ds <- exp(-abs(outer(revival,revival, "-"))/cov_lambda)
 
 ### Formula
 
-model1 <- regress(Table_2$obs~revival, ~Patient.ds)
+model1 <- regress(Table_2$obs~revival, ~Patient.ds, kernel=0)
 
 compl_beta <- cbind(compl_beta, model1$beta)
 compl_sigma <- cbind(compl_sigma, model1$sigma)
@@ -103,7 +103,7 @@ Patient_cens <- outer(Table_2_cens$id, Table_2_cens$id, "==")  # Patient Indicat
 
 cov_lambda <- 1.0; Patient_cens.ds <- exp(-abs(outer(Table_2_cens $revival, Table_2_cens$revival, "-"))/cov_lambda) *Patient_cens # Patient Specific Exponential Covariance Matrix
 
-model2 <- regress(Table_2_cens$obs ~ Table_2_cens$revival, ~Patient_cens.ds, kernel = 1)
+model2 <- regress(Table_2_cens$obs ~ Table_2_cens$revival, ~Patient_cens.ds, kernel = 0)
 
 
 cens_beta <- cbind(cens_beta, model2$beta)
@@ -115,14 +115,13 @@ survival_cens_time <- function(x) {Table_1_cens$survival[Table_1_cens$id == x]}
 
 Table_2_rev = Table_2[-which(Table_2$obs_times > as.numeric(lapply(Table_2$id,survival_cens_time))),]
   
-X_1 <- function(pat_table) {
-  const = rep(1, dim(pat_table)[1])
-}
-
-X_2 <- function(t, pat_table) {
+Cov <- function(t, pat_table) {
   # Returns the revival vector
+  # and the log(s+delta)
+  # and treatment vectors
   revival = t- pat_table$obs_times
-  return(revival)
+  form=~revival
+  return(model.matrix(form))
 }
 
 Sigma_calc <- function(cov_params, pat_table) {
@@ -148,55 +147,74 @@ K = list(K_1, K_2)
 
 mean_params <- model2$beta
 cov_params <- c(model2$sigma)
-theta <- (sum(1-Table_1_cens$cens))/sum(Table_1_cens$survival)
 
-source('MLE_censoring.R')
+library(survival)
+
+weibull_fit = survreg(Surv(Table_1_cens$survival,!Table_1_cens$cens)~1)
+
+theta = list('k' = 1/weibull_fit$scale, 'lambda' = exp(weibull_fit$coef))
+
+gamma = 0
+
+source('../../weibull_code/fit.weibullph.R')
 
 summary(model1)
 summary(model2)
 
 true_params = c(alpha,beta,sigmasq_0,sigmasq_1)
 
-rev <- revival_model(Table_1_cens, Table_2_rev, X_1, X_2, Sigma_calc, K, mean_params, cov_params, theta, fixed = FALSE)
-rev_fixed <- revival_model(Table_1_cens, Table_2_rev, X_1, X_2, Sigma_calc, K, mean_params, cov_params, theta, fixed = TRUE)
+params = list('mean_params' = mean_params, 'cov_params' = cov_params, 'theta' = theta, 'gamma' = gamma)
 
-### Imputation Model ###
+rev <- fit.weibullph(Table_1_cens, Table_2_rev, Cov, Sigma_calc, K, params, control = list('fixed' = FALSE))
 
-source('Imputation_censoring.R')
+rev_fixed <- fit.weibullph(Table_1_cens, Table_2_rev, Cov, Sigma_calc, K, params, control = list('fixed' = TRUE))
 
-my_model <- function(table1, table2) {
-	### Build the Table Mean Functions For the Model
+write.table(rev$mle, './output/lin_mle', append = TRUE, row.names = FALSE, col.names = FALSE)
+write.table(rev$hess, '/output/lin_hess', append = TRUE, row.names = FALSE, col.names = FALSE)
+write.table(rev$conv, '/output/lin_conv', append = TRUE, row.names = FALSE, col.names = FALSE)
+
+write.table(rev_fixed$mle, '/output/lin_fixed_mle', append = TRUE, row.names = FALSE, col.names = FALSE)
+write.table(rev_fixed$hess, '/output/lin_fixed_hess', append = TRUE, row.names = FALSE, col.names = FALSE)
+write.table(rev_fixed$conv, '/output/lin_fixed_conv', append = TRUE, row.names = FALSE, col.names = FALSE)
+
+
+# ### Imputation Model ###
+
+# source('../../imputation/Imputation_censoring.R')
+
+# my_model <- function(table1, table2) {
+	# ### Build the Table Mean Functions For the Model
 	
-	survival <- function(x) {table1$survival[table1$id == x]}
+	# survival <- function(x) {table1$survival[table1$id == x]}
 	
-	table2$revival = as.numeric(lapply(table2$id, survival)) - table2$obs_times 
+	# table2$revival = as.numeric(lapply(table2$id, survival)) - table2$obs_times 
 	
-	### Compute the Covariance Models
-	Patient_cens <- outer(table2$id, table2$id, "==")  # Patient Indicator Matrix
+	# ### Compute the Covariance Models
+	# Patient_cens <- outer(table2$id, table2$id, "==")  # Patient Indicator Matrix
 
-	cov_lambda <- 1.0; Patient_cens.ds <- exp(-abs(outer(table2$revival, table2$revival, "-"))/cov_lambda) *Patient_cens # Patient Specific Exponential Covariance Matrix
+	# cov_lambda <- 1.0; Patient_cens.ds <- exp(-abs(outer(table2$revival, table2$revival, "-"))/cov_lambda) *Patient_cens # Patient Specific Exponential Covariance Matrix
 
-	model <- regress(table2$obs ~ table2$revival, ~Patient_cens.ds, kernel = 1)
+	# model <- regress(table2$obs ~ table2$revival, ~Patient_cens.ds, kernel = 1)
 	
-	return(model)
+	# return(model)
 	
-}
+# }
 
-M = 20
+# M = 20
 
-rev_imp <- revival_model_imputation(Table_1_cens, Table_2_rev, X_1, X_2, Sigma_calc, my_model, M, mean_params, cov_params, theta, fixed = FALSE)
+# rev_imp <- revival_model_imputation(Table_1_cens, Table_2_rev, X_1, X_2, Sigma_calc, my_model, M, mean_params, cov_params, theta, fixed = FALSE)
 
 
-results = cbind(rev$mle, c(rev_fixed$mle,theta), c(rev_imp$mle,theta))
+# results = cbind(rev$mle, c(rev_fixed$mle,theta), c(rev_imp$mle,theta))
 
-if (rev$conv == 0 & rev_fixed$conv == 0) {
-	write.table(results,"results", append = TRUE)
+# if (rev$conv == 0 & rev_fixed$conv == 0) {
+	# write.table(results,"results", append = TRUE)
 
-	sendmail(recipient, subject="Notification from R", message="Simulation Successful!")
+	# sendmail(recipient, subject="Notification from R", message="Simulation Successful!")
 	
-}
-else {
-	sendmail(recipient, subject="Notification from R", message="Simulation Failure! Get 'em Next Time, Kid.")
-}
+# }
+# else {
+	# sendmail(recipient, subject="Notification from R", message="Simulation Failure! Get 'em Next Time, Kid.")
+# }
 
 

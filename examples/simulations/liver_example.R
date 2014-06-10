@@ -13,7 +13,7 @@ cens_sigma <- rep(0,0)
 rev_mle <- rep(0,0)
 
 # for(k in 1:11) {
-n_patients = 200
+n_patients = 80
 
 # Table 1 ~ Survival Data is Exponential with rate parameter lambda = 6
 	# Assume No Censoring
@@ -78,7 +78,8 @@ Table_2 = data.frame(Table_2)
 names(Table_2) = c('id', 'obs_times', 'obs')
 
 ### Build Revival and Treatment Columns
-treatment <- function(x) {Table_1_cens$treatment[Table_1$id == x]}
+treatment <- function(x) {Table_1$treatment[Table_1$id == x]}
+survival <- function(x) {Table_1$survival[Table_1$id == x]}
 
 Table_2$treat = as.numeric(unlist(lapply(Table_2$id, treatment)))
 

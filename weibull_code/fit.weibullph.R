@@ -1,4 +1,4 @@
-fit.weibullph <- function(Table_1, Table_2, Cov, Sigma_calc, K, params, control) {
+fit.weibullph <- function(Table_1, Table_2, Cov, Sigma_Calc, K, params, control) {
 	
 	# Fits a Components of Variance Model
 
@@ -21,21 +21,29 @@ mean_params = params$mean_params
 cov_params = params$cov_params
 theta = params$theta
 gamma = params$gamma
+num_varcomp = length(K)
+
+# Fix W = 0 For Now
+W = 0
+
+list.params <- list(mean_params = mean_params, cov_params = cov_params, theta = theta, gamma = gamma)
+
+params <- unlist(as.relistable(list.params))
 
 # For Trial Period
 
-Cov <- function(t, pat_table) {
-  # Returns the revival vector
-  # and the log(s+delta)
-  # and treatment vectors
-  delta = 1/365
-  revival = t- pat_table$obs_times
-  log_rev = log(revival + delta)
-  treatment = pat_table$treatment
-  T = rep(t, length(revival))
-  form=~treatment+T+revival+log_rev
-  return(model.matrix(form))
-}
+# Cov <- function(t, pat_table) {
+  # # Returns the revival vector
+  # # and the log(s+delta)
+  # # and treatment vectors
+  # delta = 1/365
+  # revival = t- pat_table$obs_times
+  # log_rev = log(revival + delta)
+  # treatment = pat_table$treatment
+  # T = rep(t, length(revival))
+  # form=~treatment+T+revival+log_rev
+  # return(model.matrix(form))
+# }
 
 # Density Functions
 
@@ -100,26 +108,24 @@ h <- function(mean_params, cov_params, theta, gamma, W, obs, pat_table) {
 	h_t <- function(t) {
 		t_dens = log_f(theta,gamma, W)
 		y_dens = log_g(mean_params, cov_params, obs, pat_table) 
-		return( exp(t_dens(t) + y_dens(t)) )
+		return( exp(t_dens(t) + y_dens(t)))
 	}
 	
 	return(h_t)
 	
 }
 
-
 logint <- function(mean_params, cov_params, theta, gamma, W, obs, pat_table,c) {
 	# Returns the log of the integral from censoring to infty 
 	# of the joint density of (Y,t) 
 	
 	h_vec = Vectorize(h(mean_params, cov_params,theta,gamma, W, obs, pat_table))
-	return(log(integrate(h_vec, c, Inf)$value))
+	return(log(integrate(h_vec, c, c+30)$value))
 }
-
 
 log_lik_cens <- function(mean_params, cov_params, theta, gamma, W, obs, pat_table,c) {
 	# Log-likelhood for Censored Patients
-	return( -log_surv(theta,gamma,W)(c) + logint(mean_params, cov_params, theta, gamma, W, obs, pat_table,c))
+	return( logint(mean_params, cov_params, theta, gamma, W, obs, pat_table,c) ) #- log_surv(theta,gamma,W)(c) )
 }
 
 log_lik_uncens <- function(mean_params, cov_params, theta, gamma, W, obs, pat_table,T) {
@@ -128,10 +134,6 @@ log_lik_uncens <- function(mean_params, cov_params, theta, gamma, W, obs, pat_ta
 }
 
 ### Complete Log-Likelihood
-
-list.params <- list(mean_params = mean_params, cov_params = cov_params, theta = theta, gamma = gamma)
-
-params <- unlist(as.relistable(list.params))
 
 log_lik <- function(params, table1 = Table_1, table2 = Table_2) {
 
@@ -155,35 +157,40 @@ log_lik <- function(params, table1 = Table_1, table2 = Table_2) {
 			llik = llik + log_lik_uncens(mean_params, cov_params, theta, gamma, W, pat_table$obs, pat_table,T)
 		}
 	}	
-	return(llik)
+	return(-llik)
 }
-
-num_varcomp = length(K)
 
 ### Weibull Score Equations ##
 shape_grad <- function(theta, gamma, W, c) {
 		shape_grad_t <- function(t) {
-			integral = exp(gamma%*%W) * ( (t/theta$lambda)^theta$k * log(t/theta$lambda)  - (c/theta$lambda)^theta$k * log(t/theta$lambda)  )
-			return(1/theta$k + log(t) - log(theta$lambda) - log_integral)
+			if (c != 0) {
+				integral = exp(gamma%*%W) * ( (t/theta$lambda)^theta$k * log(t/theta$lambda)) # - (c/theta$lambda)^theta$k * log(c/theta$lambda)  )
+			} else{
+				integral = exp(gamma%*%W) * (t/theta$lambda)^theta$k * log(t/theta$lambda) 	
+			}
+			return(1/theta$k + log(t) - log(theta$lambda) - integral)
 		}
 		return(shape_grad_t)
 	}
 	
 scale_grad <- function(theta, gamma, W, c) {
 		scale_grad_t <- function(t) {
-			integral = exp(gamma%*%W) * ((theta$k/theta$lambda)*(t/theta$lambda)^theta$k - (theta$k/theta$lambda)*(c/theta$lambda)^theta$k ) 
+			integral = exp(gamma%*%W) * ((theta$k/theta$lambda)*(t/theta$lambda)^theta$k) # - (theta$k/theta$lambda)*(c/theta$lambda)^theta$k ) 
 			return(-theta$k/theta$lambda + integral)
 		}
 		return(scale_grad_t)
 	}
 
 ### Expected Terms
-expected_terms <- function(params, pat_table, c) {
-	params <- unlist(as.relistable(list.params))
+expected_terms <- function(params, pat_table, c) {    
+	mean_params = params$mean_params
+	cov_params = params$cov_params
+	theta = params$theta
+	gamma = params$gamma
 
 	cond_dens = Vectorize(h(mean_params, cov_params, theta, gamma, W, pat_table$obs, pat_table))
 
-	eval_T = seq(c, min(c+15,30), by = 0.1)
+	eval_T = seq(c,c+30, by = 0.05)
 	
 	Sigma = Sigma_calc(cov_params,pat_table)
 	Inv_Sigma = solve(Sigma)
@@ -245,7 +252,12 @@ expected_terms <- function(params, pat_table, c) {
 
 grad_calc <- function(params, table1 = Table_1, table2 = Table_2) {
 
-	params <- unlist(as.relistable(list.params))
+    params <- relist(params, skeleton = list.params)
+    
+	mean_params = params$mean_params
+	cov_params = params$cov_params
+	theta = params$theta
+	gamma = params$gamma
 
 	grad_lambda = 0
 	grad_k = 0
@@ -299,39 +311,79 @@ grad_calc <- function(params, table1 = Table_1, table2 = Table_2) {
 			}
 		}
 	}
-	return(-c(grad_beta,unlist(grad_sigma), grad_k, grad_lambda))
+	return(-c(grad_beta,unlist(grad_sigma), grad_k, grad_lambda,0))
 }
 
+### Fixed Theta Log-lik and Grad Calculations
+
+list.params_fixed <- list(mean_params = mean_params, cov_params = cov_params, gamma = gamma)
+
+params_fixed <- unlist(as.relistable(list.params_fixed))
+
+log_lik_fixed <- function(theta, table1 = Table_1, table2 = Table_2) {
+	
+	log_lik_fixed_2 <- function(params_fixed) {
+	    params_fixed <- relist(params_fixed, skeleton = list.params_fixed)
+	    
+	    list.params <- list(mean_params = mean_params, cov_params = cov_params, theta = theta, gamma = gamma)
+	    
+	    params <- unlist(as.relistable(list.params))
+	    
+	    return(log_lik(params))			
+	}
+
+	return( log_lik_fixed_2 )
+}
+
+grad_calc_fixed <- function(params, table1 = Table_1, table2 = Table_2) {
+		
+	grad_calc_fixed_2 <- function(params_fixed) {
+	    params_fixed <- relist(params_fixed, skeleton = list.params_fixed)
+	    
+	    list.params <- list(mean_params = mean_params, cov_params = cov_params, theta = theta, gamma = gamma)
+	    
+	    params <- unlist(as.relistable(list.params))
+	    
+	    num_longparams = length(mean_params)+length(cov_params)
+	    
+	    num_baseparams = length(gamma)
+	    
+	    num_totalparams = length(params)
+	    
+	    return(grad_calc(params)[c(1:num_longparams,(num_totalparams-num_baseparams+1):num_totalparams)]) 			
+	}
+
+	return( grad_calc_fixed_2 )
+
+}
 
 # Fit from the Initialization Given By Model_Cens
 
 print('Got to The Optimization Component')
 
-#maxcens = max(Table_1$survival[Table_1$cens == 1])
+library(numDeriv)
 
-#cdf_T(0.25, maxcens)
+max_k = 10*theta$k
+max_lambda = 10*theta$lambda
 
-max_k = 5*theta$k
-max_lambda = 5*theta$lambda
+min_k = theta$k/10
+min_lambda = theta$lambda/10
 
-if(fixed == TRUE) {
+if(control$fixed == TRUE) {
   print('Fixed Theta For Optimization')
   inits <- params
-  op_llik <- optim(inits, log_lik, grad_calc, lower = c(rep(-Inf,length(mean_params)), rep(0, length(cov_params)), theta$k, theta$lambda), upper = c(rep(Inf, length(mean_params) + length(cov_params)), theta$k, theta$lambda), hessian = TRUE)  
+  op_llik <- optim(inits, log_lik, grad_calc, lower = c(rep(-Inf,length(mean_params)), rep(0, length(cov_params)), min_k, min_lambda, -Inf), upper = c(rep(Inf, length(mean_params) + length(cov_params)), max_k, max_lambda,Inf), hessian = TRUE, control = list(trace = 1, maxit = 500))  
 }
-if(fixed == FALSE) {
-  inits <- params
-  op_llik <- optim(inits, log_lik, grad_calc, lower = c(rep(-Inf,length(mean_params)), rep(0, length(cov_params)), 0,0), upper = c(rep(Inf, length(mean_params) + length(cov_params)), max_k, max_lambda), hessian = TRUE)  
+if(control$fixed == FALSE) {
+  print('Theta is Not Fixed For Optimization')
+  inits <- params_fixed
+  op_llik <- optim(inits, log_lik_fixed(theta), grad_calc_fixed(theta), lower = c(rep(-Inf,length(mean_params)), rep(0, length(cov_params)), -Inf), upper = c(rep(Inf, length(mean_params) + length(cov_params)),Inf))  
 }
 
 print(op_llik$convergence)
 print('Finished the Optimization Code')
 
-mle_est <- op_llik$par
-
-print(mle_est)
-
-# Compute the Hessian at the MLE estimate
+# Return the MLE Estimates
 
 return(list("mle" = op_llik$par, "hess" = op_llik$hessian, "conv" = op_llik$convergence))
 

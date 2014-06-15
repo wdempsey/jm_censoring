@@ -188,19 +188,18 @@ gamma = 0
 
 source('../../weibull_code/fit.weibullph.R')
 
+save(model1, file = "./output/compl_rnd_liv_output")
+save(model2, file = "./output/cens__rnd_liv_output")
+
 params = list('mean_params' = mean_params, 'cov_params' = cov_params, 'theta' = theta, 'gamma' = gamma)
 
 rev <- fit.weibullph(Table_1_cens, Table_2_rev, Cov, Sigma_calc, K, params, control = list('fixed' = FALSE))
 
 rev_fixed <- fit.weibullph(Table_1_cens, Table_2_rev, Cov, Sigma_calc, K, params, control = list('fixed' = TRUE))
 
-write.table(rev$mle, './output/lin_mle', append = TRUE, row.names = FALSE, col.names = FALSE)
-write.table(rev$hess, '/output/lin_hess', append = TRUE, row.names = FALSE, col.names = FALSE)
-write.table(rev$conv, '/output/lin_conv', append = TRUE, row.names = FALSE, col.names = FALSE)
+save(rev, file = "./output/_rnd_liv_output")
+save(rev_fixed, file = "./output/fixed__rnd_liv_output")
 
-write.table(rev_fixed$mle, '/output/lin_fixed_mle', append = TRUE, row.names = FALSE, col.names = FALSE)
-write.table(rev_fixed$hess, '/output/lin_fixed_hess', append = TRUE, row.names = FALSE, col.names = FALSE)
-write.table(rev_fixed$conv, '/output/lin_fixed_conv', append = TRUE, row.names = FALSE, col.names = FALSE)
 
 # ### Imputation Model ###
 

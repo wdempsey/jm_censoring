@@ -180,6 +180,9 @@ theta = list('k' = 1/weibull_fit$scale, 'lambda' = exp(weibull_fit$coef))
 
 gamma = 0
 
+save(model1, file = "./output/compl_fix_apt_output")
+save(model2, file = "./output/cens_fix_apt_output")
+
 source('../../weibull_code/fit.weibullph.R')
 
 params = list('mean_params' = mean_params, 'cov_params' = cov_params, 'theta' = theta, 'gamma' = gamma)
@@ -188,13 +191,8 @@ rev <- fit.weibullph(Table_1_cens, Table_2_rev, Cov, Sigma_calc, K, params, cont
 
 rev_fixed <- fit.weibullph(Table_1_cens, Table_2_rev, Cov, Sigma_calc, K, params, control = list('fixed' = TRUE))
 
-write.table(rev$mle, './output/lin_mle', append = TRUE, row.names = FALSE, col.names = FALSE)
-write.table(rev$hess, '/output/lin_hess', append = TRUE, row.names = FALSE, col.names = FALSE)
-write.table(rev$conv, '/output/lin_conv', append = TRUE, row.names = FALSE, col.names = FALSE)
-
-write.table(rev_fixed$mle, '/output/lin_fixed_mle', append = TRUE, row.names = FALSE, col.names = FALSE)
-write.table(rev_fixed$hess, '/output/lin_fixed_hess', append = TRUE, row.names = FALSE, col.names = FALSE)
-write.table(rev_fixed$conv, '/output/lin_fixed_conv', append = TRUE, row.names = FALSE, col.names = FALSE)
+save(rev, file = "./output/fix_apt_output")
+save(rev_fixed, file = "./output/fixed_fix_apt_output")
 
 # ### Imputation Model ###
 

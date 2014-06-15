@@ -20,14 +20,14 @@ n_patients = 50
 
 lambda = 1/5 # Patients survive an avg of 5 years
 
-Table_1 = matrix(nrow = n_patients, ncol = 3) 
-
-Table_1[,1] = seq(1,n_patients)
-Table_1[,2] = rep(0, n_patients)
-Table_1[,3] = rexp(n_patients, rate = lambda)
+Table_1 = matrix(nrow = n_patients, ncol = 4) 
 
 Table_1 = data.frame(Table_1)
-names(Table_1) = c("id", "cens", "survival")
+names(Table_1) = c("id", "cens", "survival", "treatment")
+Table_1$id = as.numeric(seq(1,n_patients))
+Table_1$cens = as.numeric(rep(0, n_patients))
+Table_1$survival = as.numeric(rexp(n_patients, rate = lambda))
+Table_1$treatment = c(rep('control', n_patients/2), rep('prednisone', n_patients/2))
 
 lambda_hat_uncens = n_patients/sum(Table_1$survival)
 
@@ -98,22 +98,25 @@ Table_2_cens = Table_2[!as.logical(lapply(Table_2$id,censored)),]
 
 Table_2_cens$revival = as.numeric(lapply(Table_2_cens$id, survival)) - Table_2_cens$obs_times 
 
+survival_cens_time <- function(x) {Table_1_cens$survival[Table_1_cens$id == x]}
+
+Table_2_rev = Table_2[-which(Table_2$obs_times > as.numeric(lapply(Table_2$id,survival_cens_time))),]
+
+Table_2_rev$revival = as.numeric(lapply(Table_2_rev$id, survival)) - Table_2_rev$obs_times 
+
 ### Compute the Covariance Models
-Patient_cens <- outer(Table_2_cens$id, Table_2_cens$id, "==")  # Patient Indicator Matrix
+Patient_cens <- outer(Table_2_rev$id, Table_2_rev$id, "==")  # Patient Indicator Matrix
 
-cov_lambda <- 1.0; Patient_cens.ds <- exp(-abs(outer(Table_2_cens $revival, Table_2_cens$revival, "-"))/cov_lambda) *Patient_cens # Patient Specific Exponential Covariance Matrix
+cov_lambda <- 1.0; Patient_cens.ds <- exp(-abs(outer(Table_2_rev$revival, Table_2_rev$revival, "-"))/cov_lambda) *Patient_cens # Patient Specific Exponential Covariance Matrix
 
-model2 <- regress(Table_2_cens$obs ~ Table_2_cens$revival, ~Patient_cens.ds, kernel = 0)
-
+model2 <- regress(Table_2_rev$obs ~ Table_2_rev$revival, ~Patient_cens.ds, kernel = 0)
 
 cens_beta <- cbind(cens_beta, model2$beta)
 cens_sigma <- cbind(cens_sigma, model2$sigma)
 
-# Create the Mean and Covariance Functions
-survival_cens_time <- function(x) {Table_1_cens$survival[Table_1_cens$id == x]}
 
+## Create Mean and Covariance Functions
 
-Table_2_rev = Table_2[-which(Table_2$obs_times > as.numeric(lapply(Table_2$id,survival_cens_time))),]
   
 Cov <- function(t, pat_table) {
   # Returns the revival vector
@@ -158,8 +161,8 @@ gamma = 0
 
 source('../../weibull_code/fit.weibullph.R')
 
-summary(model1)
-summary(model2)
+save(model1, file = "./output/compl_linear_output")
+save(model2, file = "./output/cens_linear_output")
 
 true_params = c(alpha,beta,sigmasq_0,sigmasq_1)
 
@@ -169,14 +172,8 @@ rev <- fit.weibullph(Table_1_cens, Table_2_rev, Cov, Sigma_calc, K, params, cont
 
 rev_fixed <- fit.weibullph(Table_1_cens, Table_2_rev, Cov, Sigma_calc, K, params, control = list('fixed' = TRUE))
 
-write.table(rev$mle, './output/lin_mle', append = TRUE, row.names = FALSE, col.names = FALSE)
-write.table(rev$hess, '/output/lin_hess', append = TRUE, row.names = FALSE, col.names = FALSE)
-write.table(rev$conv, '/output/lin_conv', append = TRUE, row.names = FALSE, col.names = FALSE)
-
-write.table(rev_fixed$mle, '/output/lin_fixed_mle', append = TRUE, row.names = FALSE, col.names = FALSE)
-write.table(rev_fixed$hess, '/output/lin_fixed_hess', append = TRUE, row.names = FALSE, col.names = FALSE)
-write.table(rev_fixed$conv, '/output/lin_fixed_conv', append = TRUE, row.names = FALSE, col.names = FALSE)
-
+save(rev, file = "./output/linear_output")
+save(rev_fixed, file = "./output/fixed_linear_output")
 
 # ### Imputation Model ###
 

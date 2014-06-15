@@ -113,7 +113,16 @@ summary(baseline_model)
 
 mean_params <- baseline_model$beta
 cov_params <- c(baseline_model$sigma)
-theta <- (sum(1-Table_1$cens))/sum(Table_1$survival)
+
+library(survival)
+
+weibull_fit = survreg(Surv(Table_1$survival,!Table_1$cens)~1)
+
+theta = list('k' = 1/weibull_fit$scale, 'lambda' = exp(weibull_fit$coef))
+
+gamma = 0
+
+source('../../weibull_code/fit.weibullph.R')
 
 ### Running the Code on Only Censored Individuals ##
 
@@ -135,60 +144,65 @@ K_3 <- function(pat_table) {
 
 K = list(K_1, K_2, K_3)
 
-source('MLE_censoring.R')
-source('EM_censoring.R')
-
 recipient = "dempsey.walter@gmail.com"
 
 if(args[1] == 'cens') {
 	print('Computing Censored Only Model')
+	
+	params = list('mean_params' = mean_params, 'cov_params' = cov_params, 'theta' = theta, 'gamma' = gamma)
 
-	rev_mod <- revival_model(Table_1_cens, Table_2_cens, X_1, X_2, Sigma_calc, K, mean_params, cov_params, theta, fixed = TRUE)
+	rev_mod <- fit.weibullph(Table_1_cens, Table_2_cens, Cov, Sigma_calc, K, params, control = list(fixed = FALSE))
+	
+	rev_mod_fixed <- fit.weibullph(Table_1_cens, Table_2_cens, Cov, Sigma_calc, K, params, control = list(fixed = TRUE))
 	
 	mle = rev_mod$mle
 	hess = rev_mod$hess
     conv = rev_mod$conv
     
+   	mle_fixed = rev_mod_fixed$mle
+	hess_fixed = rev_mod_fixed$hess
+    conv_fixed = rev_mod_fixed$conv
+    
 	write.table(mle, 'prot_mle_cens')
 	write.table(hess, 'prot_hess_cens')
     write.table(conv, 'prot_conv_cens')
+    
+   	write.table(mle_fixed, 'prot_mle_cens_fixed')
+	write.table(hess_fixed, 'prot_hess_cens_fixed')
+    write.table(conv_fixed, 'prot_conv_cens_fixed')
+
 
     sendmail(recipient, subject="Notification from R", message="Censored Only Model Calculation finished!")
-
-}
-
-if(args[1] == 'em') {
-	print('Computing Censored Only Model')
-
-	rev_mod <- em_model(Table_1_cens, Table_2_cens, X_1, X_2, Sigma_calc, K, mean_params, cov_params, theta, fixed = TRUE, max_iter = 100)
-	
-	estimates = rev_mod$estimates
-
-	write.table(estimates, 'em_prot_mle_cens')
-
-    sendmail(recipient, subject="Notification from R", message="Censored Only EM Model Calculation finished!")
 
 }
 
 if(args[1] == 'int') {
 	print('Computing Interaction Censored Only Model')
 	
-    
-#   mean_params_int <- int_baseline_model$beta
-#   cov_params_int <- int_baseline_model$sigma
-    
-    mean_params_int <- c(78.692834, -7.741526, -6.129254, 2.863103, -2.631562, -2.881392, 5.355214, 8.213965)
-    cov_params_int <- c(204.649834, 190.928444, 199.813551)
-    
-	rev_mod <- revival_model(Table_1_cens, Table_2_cens, X_1, X_2_int, Sigma_calc, K, mean_params_int, cov_params_int, theta, fixed = TRUE)
+	mean_params_int <- int_baseline_model$beta
+	cov_params_int <- int_baseline_model$sigma
+	
+	params = list('mean_params' = mean_params_int, 'cov_params' = cov_params_int, 'theta' = theta, 'gamma' = gamma)
+
+	rev_mod <- fit.weibullph(Table_1_cens, Table_2_cens, Cov, Sigma_calc, K, params, control = list(fixed = FALSE))
+	
+	rev_mod_fixed <- fit.weibullph(Table_1_cens, Table_2_cens, Cov, Sigma_calc, K, params, control = list(fixed = TRUE))
 	
 	mle = rev_mod$mle
 	hess = rev_mod$hess
     conv = rev_mod$conv
     
-	write.table(mle, 'prot_mle_int')
-	write.table(hess, 'prot_hess_int')
-    write.table(conv, 'prot_conv_int')
+   	mle_fixed = rev_mod_fixed$mle
+	hess_fixed = rev_mod_fixed$hess
+    conv_fixed = rev_mod_fixed$conv
+    
+	write.table(mle, 'prot_mle_cens_int')
+	write.table(hess, 'prot_hess_cens_int')
+    write.table(conv, 'prot_conv_cens_int')
+    
+   	write.table(mle_fixed, 'prot_mle_cens_int_fixed')
+	write.table(hess_fixed, 'prot_hess_cens_int_fixed')
+    write.table(conv_fixed, 'prot_conv_cens_int_fixed')
 
     sendmail(recipient, subject="Notification from R", message="Censored Only Model Interaction Calculation finished!")
 
@@ -197,15 +211,28 @@ if(args[1] == 'int') {
 if(args[1] == 'uncens') {
 	print('Computing UnCensored Only Model')
 
-	rev_mod <- revival_model(Table_1_uncens, Table_2_uncens, X_1, 	X_2, Sigma_calc, mean_params, cov_params, theta, fixed = TRUE)
+	params = list('mean_params' = mean_params, 'cov_params' = cov_params, 'theta' = theta, 'gamma' = gamma)
+
+	rev_mod <- fit.weibullph(Table_1_uncens, Table_2_uncens, Cov, Sigma_calc, K, params, control = list(fixed = FALSE))
+	
+	rev_mod_fixed <- fit.weibullph(Table_1_uncens, Table_2_uncens, Cov, Sigma_calc, K, params, control = list(fixed = TRUE))
 	
 	mle = rev_mod$mle
 	hess = rev_mod$hess
     conv = rev_mod$conv
-	
+    
+   	mle_fixed = rev_mod_fixed$mle
+	hess_fixed = rev_mod_fixed$hess
+    conv_fixed = rev_mod_fixed$conv
+    
 	write.table(mle, 'prot_mle_uncens')
 	write.table(hess, 'prot_hess_uncens')
     write.table(conv, 'prot_conv_uncens')
+    
+   	write.table(mle_fixed, 'prot_mle_uncens_fixed')
+	write.table(hess_fixed, 'prot_hess_uncens_fixed')
+    write.table(conv_fixed, 'prot_conv_uncens_fixed')
+
 
     sendmail(recipient, subject="Notification from R", message="Uncensored Only Model Calculation finished!")
 }
@@ -214,16 +241,27 @@ if(args[1] == 'uncens') {
 if(args[1] == 'compl') {
 	print('Computing Complete Model')
 
-	rev_mod_compl <- revival_model(Table_1, Table_2, X_1, X_2, Sigma_calc, mean_params, cov_params, theta, fixed = TRUE)
+	params = list('mean_params' = mean_params, 'cov_params' = cov_params, 'theta' = theta, 'gamma' = gamma)
 
-	mle_compl = rev_mod_compl$mle
-	hess_compl = rev_mod_compl$hess
-    conv = rev_mod_compl$conv
-
-
-	write.table(mle_compl, 'prot_mle_comp')
-	write.table(hess, 'prot_hess_comp')
-    write.table(conv, 'prot_conv_comp')
+	rev_mod <- fit.weibullph(Table_1, Table_2, Cov, Sigma_calc, K, params, control = list(fixed = FALSE))
+	
+	rev_mod_fixed <- fit.weibullph(Table_1, Table_2, Cov, Sigma_calc, K, params, control = list(fixed = TRUE))
+	
+	mle = rev_mod$mle
+	hess = rev_mod$hess
+    conv = rev_mod$conv
+    
+   	mle_fixed = rev_mod_fixed$mle
+	hess_fixed = rev_mod_fixed$hess
+    conv_fixed = rev_mod_fixed$conv
+    
+	write.table(mle, 'prot_mle_uncens')
+	write.table(hess, 'prot_hess_uncens')
+    write.table(conv, 'prot_conv_uncens')
+    
+   	write.table(mle_fixed, 'prot_mle_uncens_fixed')
+	write.table(hess_fixed, 'prot_hess_uncens_fixed')
+    write.table(conv_fixed, 'prot_conv_uncens_fixed')
 
     sendmail(recipient, subject="Notification from R", message="Complete Model Calculation finished!")
 }

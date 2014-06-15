@@ -46,7 +46,7 @@ meas_error = 210.89
 
 expcov <- function(x,y) {exp(-abs(x-y)/1.67)}
 
-fixed_apt_schedule = c(seq(0,1,1/3),seq(2,max(Table_1$survival),1))
+apt_schedule = c(seq(0,1,1/3),seq(2,max(Table_1$survival),1))
 
 for(i in 1:n_patients) {
 	pat_surv = Table_1$survival[Table_1$id == i]

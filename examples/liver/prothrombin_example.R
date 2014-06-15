@@ -36,12 +36,7 @@ Table_1$survival = Liver_Data$survival[as.numeric(lapply(Table_1$id, id_check))]
 
 pat_table = Table_2[Table_2$id == 220,]  
   
-X_1 <- function(pat_table) {
-  const = rep(1, dim(pat_table)[1])
-  return(const)
-}
-
-X_2 <- function(t, pat_table) {
+Cov <- function(t, pat_table) {
   # Returns the revival vector
   # and the log(s+delta)
   # and treatment vectors
@@ -51,11 +46,11 @@ X_2 <- function(t, pat_table) {
   treatment = pat_table$treatment
   T = rep(t, length(revival))
   form=~treatment+T+revival+log_rev
-  return(model.matrix(form)[,2:6])
+  return(model.matrix(form))
 }
 
 
-X_2_int <- function(t, pat_table) {
+Cov_int <- function(t, pat_table) {
   # Returns the revival vector
   # and the log(s+delta)
   # and treatment vectors
@@ -65,7 +60,7 @@ X_2_int <- function(t, pat_table) {
   treatment = pat_table$treatment
   T = rep(t, length(revival))
   form=~treatment+T+revival+log_rev+log_rev*treatment
-  return(model.matrix(form)[,2:8])
+  return(model.matrix(form)[,])
 }
 
 
@@ -184,9 +179,9 @@ if(args[1] == 'int') {
 	
 	params = list('mean_params' = mean_params_int, 'cov_params' = cov_params_int, 'theta' = theta, 'gamma' = gamma)
 
-	rev_mod <- fit.weibullph(Table_1_cens, Table_2_cens, Cov, Sigma_calc, K, params, control = list(fixed = FALSE))
+	rev_mod <- fit.weibullph(Table_1_cens, Table_2_cens, Cov_int, Sigma_calc, K, params, control = list(fixed = FALSE))
 	
-	rev_mod_fixed <- fit.weibullph(Table_1_cens, Table_2_cens, Cov, Sigma_calc, K, params, control = list(fixed = TRUE))
+	rev_mod_fixed <- fit.weibullph(Table_1_cens, Table_2_cens, Cov_int, Sigma_calc, K, params, control = list(fixed = TRUE))
 	
 	mle = rev_mod$mle
 	hess = rev_mod$hess

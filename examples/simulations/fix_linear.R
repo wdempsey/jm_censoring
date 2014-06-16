@@ -161,9 +161,6 @@ gamma = 0
 
 source('../../weibull_code/fit.weibullph.R')
 
-save(model1, file = "./output/compl_linear_output")
-save(model2, file = "./output/cens_linear_output")
-
 true_params = c(alpha,beta,sigmasq_0,sigmasq_1)
 
 params = list('mean_params' = mean_params, 'cov_params' = cov_params, 'theta' = theta, 'gamma' = gamma)
@@ -171,6 +168,9 @@ params = list('mean_params' = mean_params, 'cov_params' = cov_params, 'theta' = 
 rev <- fit.weibullph(Table_1_cens, Table_2_rev, Cov, Sigma_calc, K, params, control = list('fixed' = FALSE))
 
 rev_fixed <- fit.weibullph(Table_1_cens, Table_2_rev, Cov, Sigma_calc, K, params, control = list('fixed' = TRUE))
+
+save(model1, file = "./output/compl_linear_output")
+save(model2, file = "./output/cens_linear_output")
 
 save(rev, file = "./output/linear_output")
 save(rev_fixed, file = "./output/fixed_linear_output")

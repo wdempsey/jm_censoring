@@ -189,7 +189,7 @@ gamma = 0
 source('../../weibull_code/fit.weibullph.R')
 
 save(model1, file = "./output/compl_rnd_liv_output")
-save(model2, file = "./output/cens__rnd_liv_output")
+save(model2, file = "./output/cens_rnd_liv_output")
 
 params = list('mean_params' = mean_params, 'cov_params' = cov_params, 'theta' = theta, 'gamma' = gamma)
 
@@ -197,8 +197,8 @@ rev <- fit.weibullph(Table_1_cens, Table_2_rev, Cov, Sigma_calc, K, params, cont
 
 rev_fixed <- fit.weibullph(Table_1_cens, Table_2_rev, Cov, Sigma_calc, K, params, control = list('fixed' = TRUE))
 
-save(rev, file = "./output/_rnd_liv_output")
-save(rev_fixed, file = "./output/fixed__rnd_liv_output")
+save(rev, file = "./output/rnd_liv_output")
+save(rev_fixed, file = "./output/fixed_rnd_liv_output")
 
 
 # ### Imputation Model ###

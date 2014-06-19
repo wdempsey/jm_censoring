@@ -258,6 +258,8 @@ grad_calc <- function(params, table1 = Table_1, table2 = Table_2) {
 	cov_params = params$cov_params
 	theta = params$theta
 	gamma = params$gamma
+	
+	patients = table1$id
 
 	grad_lambda = 0
 	grad_k = 0
@@ -267,12 +269,12 @@ grad_calc <- function(params, table1 = Table_1, table2 = Table_2) {
 		grad_sigma[[i]] = 0
 	}
 	num_pats = dim(table1)[1]
-	for (pat in 1:num_pats) {
+	for (pat in patients) {
 		pat_table = table2[table2$id == pat, ]
 		Sigma = Sigma_calc(cov_params, pat_table)
 		Inv_Sigma = solve(Sigma)
 			
-		if(table1$cens[pat] == 0) {
+		if(table1$cens[table1$id == pat] == 0) {
 			# Lambda
 			T = table1$survival[pat]
 			
@@ -293,8 +295,8 @@ grad_calc <- function(params, table1 = Table_1, table2 = Table_2) {
 			}
 
 		}
-		if(table1$cens[pat] == 1) {
-			c = table1$survival[pat]
+		if(table1$cens[table1$id == pat] == 1) {
+			c = table1$survival[table1$id == pat]
 			exp_terms = expected_terms(params,pat_table,c) 
 
 			# Lambda

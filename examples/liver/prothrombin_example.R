@@ -60,7 +60,7 @@ Cov_int <- function(t, pat_table) {
   treatment = pat_table$treatment
   T = rep(t, length(revival))
   form=~treatment+T+revival+log_rev+log_rev*treatment
-  return(model.matrix(form)[,])
+  return(model.matrix(form))
 }
 
 
@@ -104,7 +104,7 @@ baseline_model <- regress(Table_2_uncens$obs~Table_2_uncens$treatment+Table_2_un
 int_baseline_model <- regress(Table_2_uncens$obs~Table_2_uncens$treatment+Table_2_uncens$survival+Table_2_uncens$revival+Table_2_uncens$logrev+Table_2_uncens$logrev*Table_2_uncens$treatment, ~Patient + Patient.ds, kernel = 0)
 
   
-summary(baseline_model)
+summary(int_baseline_model)
 
 mean_params <- baseline_model$beta
 cov_params <- c(baseline_model$sigma)

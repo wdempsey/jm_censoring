@@ -327,32 +327,32 @@ log_lik_fixed <- function(theta, table1 = Table_1, table2 = Table_2) {
 	log_lik_fixed_2 <- function(params_fixed) {
 	    params_fixed <- relist(params_fixed, skeleton = list.params_fixed)
 	    
-	    list.params <- list(mean_params = mean_params, cov_params = cov_params, theta = theta, gamma = gamma)
+	    list.params <- list(mean_params = params_fixed$mean_params, cov_params = params_fixed$cov_params, theta = theta, gamma = params_fixed$gamma)
 	    
 	    params <- unlist(as.relistable(list.params))
 	    
-	    return(log_lik(params))			
+	    return(log_lik(params, table1, table2))			
 	}
 
 	return( log_lik_fixed_2 )
 }
 
-grad_calc_fixed <- function(params, table1 = Table_1, table2 = Table_2) {
+grad_calc_fixed <- function(theta, table1 = Table_1, table2 = Table_2) {
 		
 	grad_calc_fixed_2 <- function(params_fixed) {
 	    params_fixed <- relist(params_fixed, skeleton = list.params_fixed)
 	    
-	    list.params <- list(mean_params = mean_params, cov_params = cov_params, theta = theta, gamma = gamma)
+	    list.params <- list(mean_params = params_fixed$mean_params, cov_params = params_fixed$cov_params, theta = theta, gamma = params_fixed$gamma)
 	    
 	    params <- unlist(as.relistable(list.params))
 	    
-	    num_longparams = length(mean_params)+length(cov_params)
+	    num_longparams = length(params_fixed$mean_params)+length(params_fixed$cov_params)
 	    
-	    num_baseparams = length(gamma)
+	    num_baseparams = length(params_fixed$gamma)
 	    
 	    num_totalparams = length(params)
 	    
-	    return(grad_calc(params)[c(1:num_longparams,(num_totalparams-num_baseparams+1):num_totalparams)]) 			
+	    return(grad_calc(params, table1, table2)[c(1:num_longparams,(num_totalparams-num_baseparams+1):num_totalparams)]) 			
 	}
 
 	return( grad_calc_fixed_2 )
@@ -371,15 +371,15 @@ max_lambda = 10*theta$lambda
 min_k = theta$k/10
 min_lambda = theta$lambda/10
 
-if(control$fixed == TRUE) {
-  print('Fixed Theta For Optimization')
+if(control$fixed == FALSE) {
+  print('Theta is Not Fixed For Optimization')
   inits <- params
   op_llik <- optim(inits, log_lik, grad_calc, lower = c(rep(-Inf,length(mean_params)), rep(0, length(cov_params)), min_k, min_lambda, -Inf), upper = c(rep(Inf, length(mean_params) + length(cov_params)), max_k, max_lambda,Inf), hessian = TRUE, control = list(trace = 1, maxit = 500))  
 }
-if(control$fixed == FALSE) {
-  print('Theta is Not Fixed For Optimization')
+if(control$fixed == TRUE) {
+  print('Theta is Fixed For Optimization')
   inits <- params_fixed
-  op_llik <- optim(inits, log_lik_fixed(theta), grad_calc_fixed(theta), lower = c(rep(-Inf,length(mean_params)), rep(0, length(cov_params)), -Inf), upper = c(rep(Inf, length(mean_params) + length(cov_params)),Inf))  
+  op_llik <- optim(inits, log_lik_fixed(theta), grad_calc_fixed(theta), lower = c(rep(-Inf,length(mean_params)), rep(0, length(cov_params)), -Inf), upper = c(rep(Inf, length(mean_params) + length(cov_params)),Inf), control = list(trace = 1, maxit = 500))  
 }
 
 print(op_llik$convergence)

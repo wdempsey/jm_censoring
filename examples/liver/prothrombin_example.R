@@ -134,7 +134,7 @@ K_2 <- function(pat_table) {
 }
 
 K_3 <- function(pat_table) {
-	return(exp(-abs(outer(pat_table$obs_times, pat_table$obs_times,"-"))/1))
+	return(exp(-abs(outer(pat_table$obs_times, pat_table$obs_times,"-"))/1.67))
 }
 
 K = list(K_1, K_2, K_3)
@@ -146,21 +146,21 @@ if(args[1] == 'cens') {
 	
 	params = list('mean_params' = mean_params, 'cov_params' = cov_params, 'theta' = theta, 'gamma' = gamma)
 
-	rev_mod <- fit.weibullph(Table_1_cens, Table_2_cens, Cov, Sigma_calc, K, params, control = list(fixed = FALSE))
+	# rev_mod <- fit.weibullph(Table_1_cens, Table_2_cens, Cov, Sigma_calc, K, params, control = list(fixed = FALSE))
 	
 	rev_mod_fixed <- fit.weibullph(Table_1_cens, Table_2_cens, Cov, Sigma_calc, K, params, control = list(fixed = TRUE))
 	
-	mle = rev_mod$mle
-	hess = rev_mod$hess
-    conv = rev_mod$conv
+	# mle = rev_mod$mle
+	# hess = rev_mod$hess
+    # conv = rev_mod$conv
     
    	mle_fixed = rev_mod_fixed$mle
 	hess_fixed = rev_mod_fixed$hess
     conv_fixed = rev_mod_fixed$conv
     
-	write.table(mle, 'prot_mle_cens')
-	write.table(hess, 'prot_hess_cens')
-    write.table(conv, 'prot_conv_cens')
+	# write.table(mle, 'prot_mle_cens')
+	# write.table(hess, 'prot_hess_cens')
+    # write.table(conv, 'prot_conv_cens')
     
    	write.table(mle_fixed, 'prot_mle_cens_fixed')
 	write.table(hess_fixed, 'prot_hess_cens_fixed')
@@ -179,21 +179,21 @@ if(args[1] == 'int') {
 	
 	params = list('mean_params' = mean_params_int, 'cov_params' = cov_params_int, 'theta' = theta, 'gamma' = gamma)
 
-	rev_mod <- fit.weibullph(Table_1_cens, Table_2_cens, Cov_int, Sigma_calc, K, params, control = list(fixed = FALSE))
+	# rev_mod <- fit.weibullph(Table_1_cens, Table_2_cens, Cov_int, Sigma_calc, K, params, control = list(fixed = FALSE))
 	
 	rev_mod_fixed <- fit.weibullph(Table_1_cens, Table_2_cens, Cov_int, Sigma_calc, K, params, control = list(fixed = TRUE))
 	
-	mle = rev_mod$mle
-	hess = rev_mod$hess
-    conv = rev_mod$conv
+	# mle = rev_mod$mle
+	# hess = rev_mod$hess
+    # conv = rev_mod$conv
     
    	mle_fixed = rev_mod_fixed$mle
 	hess_fixed = rev_mod_fixed$hess
     conv_fixed = rev_mod_fixed$conv
     
-	write.table(mle, 'prot_mle_cens_int')
-	write.table(hess, 'prot_hess_cens_int')
-    write.table(conv, 'prot_conv_cens_int')
+	# write.table(mle, 'prot_mle_cens_int')
+	# write.table(hess, 'prot_hess_cens_int')
+    # write.table(conv, 'prot_conv_cens_int')
     
    	write.table(mle_fixed, 'prot_mle_cens_int_fixed')
 	write.table(hess_fixed, 'prot_hess_cens_int_fixed')

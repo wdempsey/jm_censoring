@@ -208,7 +208,7 @@ if(args[1] == 'uncens') {
 
 	params = list('mean_params' = mean_params, 'cov_params' = cov_params, 'theta' = theta, 'gamma' = gamma)
 
-	rev_mod <- fit.weibullph(Table_1_uncens, Table_2_uncens, Cov, Sigma_calc, K, params, control = list(fixed = FALSE))
+#	rev_mod <- fit.weibullph(Table_1_uncens, Table_2_uncens, Cov, Sigma_calc, K, params, control = list(fixed = FALSE))
 	
 	rev_mod_fixed <- fit.weibullph(Table_1_uncens, Table_2_uncens, Cov, Sigma_calc, K, params, control = list(fixed = TRUE))
 	

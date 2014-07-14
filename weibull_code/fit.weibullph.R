@@ -5,7 +5,7 @@ fit.weibullph <- function(Table_1, Table_2, Cov, Sigma_Calc, K, params, control)
 	# Basic : Assume each patient is iid and take advantage of the block structure
 
 	# Structure of the Data
-		# Assume 2 data matrices (Svae as Matrices Not data Frames)
+		# Assume 2 data matrices (Save as Matrices Not data Frames)
 		# Table 1 = Survival Information
 			# Column 1 = id (called 'id')
 			# Column 2 = censored indicator (called 'cens')
@@ -379,7 +379,7 @@ if(control$fixed == FALSE) {
 if(control$fixed == TRUE) {
   print('Theta is Fixed For Optimization')
   inits <- params_fixed
-  op_llik <- optim(inits, log_lik_fixed(theta), grad_calc_fixed(theta), lower = c(rep(-Inf,length(mean_params)), rep(0, length(cov_params)), -Inf), upper = c(rep(Inf, length(mean_params) + length(cov_params)),Inf), control = list(trace = 1, maxit = 500))  
+  op_llik <- optim(inits, log_lik_fixed(theta), grad_calc_fixed(theta), lower = c(rep(-Inf,length(mean_params)), rep(0, length(cov_params)), -Inf), upper = c(rep(Inf, length(mean_params) + length(cov_params)),Inf), hessian = TRUE, control = list(trace = 1, maxit = 500))  
 }
 
 print(op_llik$convergence)

@@ -276,7 +276,7 @@ grad_calc <- function(params, table1 = Table_1, table2 = Table_2) {
 			
 		if(table1$cens[table1$id == pat] == 0) {
 			# Lambda
-			T = table1$survival[pat]
+			T = table1$survival[table1$id == pat]
 			
 			grad_theta = grad_theta + deriv_theta(theta,gamma, W)(T)
 							
@@ -364,8 +364,8 @@ library(numDeriv)
 max_theta = 10*theta
 min_theta = theta/10
 
-der = grad(log_lik, unlist(params))
-der_calc = grad_calc(unlist(params))
+# der = grad(log_lik, unlist(params))
+# der_calc = grad_calc(unlist(params))
 
 if(control$fixed == FALSE) {
   print('Theta is Not Fixed For Optimization')

@@ -276,7 +276,7 @@ grad_calc <- function(params, table1 = Table_1, table2 = Table_2) {
 			
 		if(table1$cens[table1$id == pat] == 0) {
 			# Lambda
-			T = table1$survival[pat]
+			T = table1$survival[table1$id == pat]
 			
 			grad_k = grad_k + shape_grad(theta,gamma, W, 0)(T)
 			
